@@ -1,0 +1,12 @@
+node_modules/
+dist/
+.DS_Store
+_temp/
+native/.build/
+.env
+.env.*
+!.env.example
+.certs/
+artifacts/
+playwright-report/
+test-results/
