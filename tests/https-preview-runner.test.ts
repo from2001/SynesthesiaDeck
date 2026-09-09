@@ -1,5 +1,9 @@
+import { randomUUID } from 'node:crypto';
+import { mkdir, mkdtemp, readFile, rm, stat, writeFile } from 'node:fs/promises';
+import { tmpdir } from 'node:os';
+import { join } from 'node:path';
 import { afterEach, describe, expect, it, vi } from 'vitest';
-import { cloudflaredArguments, cloudflaredDiagnostic, exactOrigin, healthNetworkFailure, ngrokArguments, ngrokDiagnostic, ngrokOverlay, NgrokOriginParser, previewHelp, PreviewError, previewConfiguration, previewURLs, QuickTunnelOriginParser,
+import { acquirePreviewLock, cloudflaredArguments, cloudflaredDiagnostic, exactOrigin, healthNetworkFailure, ngrokArguments, ngrokDiagnostic, ngrokOverlay, NgrokOriginParser, previewHelp, PreviewError, previewConfiguration, previewURLs, QuickTunnelOriginParser, withPreviewRepositoryLock,
   supervisePreview, tunnelEnvironment, type AuthorityHandle, type PreviewServices, type PreviewStatus, type TunnelExit } from '../scripts/start-https-preview';
 
 function deferred<T>() {
@@ -27,7 +31,86 @@ function harness() {
 }
 
 async function drain() { for (let turn = 0; turn < 20; turn++) await Promise.resolve(); }
-afterEach(() => { vi.useRealTimers(); });
+const temporaryRepositories: string[] = [];
+async function lockFixture() {
+  const repository = await mkdtemp(join(tmpdir(), 'nanokon-preview-lock-test-'));
+  temporaryRepositories.push(repository);
+  const artifacts = join(repository, 'artifacts'); await mkdir(artifacts);
+  return { repository, artifacts, lock: join(artifacts, 'https-preview.lock'), status: join(artifacts, 'https-preview.json') };
+}
+afterEach(async () => { vi.useRealTimers(); await Promise.all(temporaryRepositories.splice(0).map(path => rm(path, { recursive: true, force: true }))); });
+
+describe('HTTPS preview repository ownership', () => {
+  it.each([['8787', '8788'], ['9887', '9888']])('preserves a running ready record when another invocation selects ports %s / %s', async (PORT, NATIVE_PORT) => {
+    const files = await lockFixture(), stop = deferred<void>(), published = deferred<void>();
+    const ready = JSON.stringify({ version: 1, state: 'ready', pid: process.pid, urls: { fixedDesk: 'https://fixed-show.vercel.app/?server=https://own.ngrok-free.dev' } });
+    const running = withPreviewRepositoryLock(files.repository, async () => {
+      await writeFile(files.status, ready); published.resolve(); await stop.promise;
+    });
+    await published.promise;
+    const config = previewConfiguration({ ...environment, PORT, NATIVE_PORT }, [], files.repository);
+    const h = harness(), duplicate = vi.fn(() => supervisePreview(config, h.services, h.abort.signal));
+    await expect(withPreviewRepositoryLock(files.repository, duplicate)).rejects.toThrow(/existing status was preserved/);
+    expect(duplicate).not.toHaveBeenCalled(); expect(h.services.status).not.toHaveBeenCalled();
+    expect(await readFile(files.status, 'utf8')).toBe(ready);
+    stop.resolve(); await running;
+    await expect(stat(files.lock)).rejects.toMatchObject({ code: 'ENOENT' });
+  });
+
+  it('reclaims a confirmed dead owner and releases the replacement lock after callback failure', async () => {
+    const files = await lockFixture();
+    const stale = { version: 1, pid: 123456789, owner: randomUUID() };
+    await writeFile(files.lock, JSON.stringify(stale));
+    await writeFile(files.status, JSON.stringify({ version: 1, state: 'ready', pid: stale.pid }));
+    const alive = (pid: number) => pid === process.pid;
+    await expect(withPreviewRepositoryLock(files.repository, async () => {
+      const current = JSON.parse(await readFile(files.lock, 'utf8'));
+      expect(current.pid).toBe(process.pid); expect(current.owner).not.toBe(stale.owner);
+      throw new PreviewError('Mock startup failure.');
+    }, alive)).rejects.toThrow('Mock startup failure.');
+    await expect(stat(files.lock)).rejects.toMatchObject({ code: 'ENOENT' });
+    await expect(stat(`${files.lock}.recovery`)).rejects.toMatchObject({ code: 'ENOENT' });
+  });
+
+  it('allows only one concurrent contender to recover a stale lock', async () => {
+    const files = await lockFixture();
+    await writeFile(files.lock, JSON.stringify({ version: 1, pid: 123456789, owner: randomUUID() }));
+    const contenders = await Promise.allSettled([acquirePreviewLock(files.repository, pid => pid === process.pid), acquirePreviewLock(files.repository, pid => pid === process.pid)]);
+    expect(contenders.filter(result => result.status === 'fulfilled')).toHaveLength(1);
+    expect(contenders.filter(result => result.status === 'rejected')).toHaveLength(1);
+    for (const result of contenders) if (result.status === 'fulfilled') await result.value();
+    await expect(stat(files.lock)).rejects.toMatchObject({ code: 'ENOENT' });
+  });
+
+  it('does not remove a replacement owner when its original release callback runs', async () => {
+    const files = await lockFixture(), release = await acquirePreviewLock(files.repository);
+    const replacement = JSON.stringify({ version: 1, pid: process.pid, owner: randomUUID() });
+    await writeFile(files.lock, replacement);
+    await release(); await release();
+    expect(await readFile(files.lock, 'utf8')).toBe(replacement);
+  });
+
+  it('preserves a live ready record from an older runner that did not create a lock', async () => {
+    const files = await lockFixture();
+    const ready = JSON.stringify({ version: 1, state: 'ready', pid: process.pid });
+    await writeFile(files.status, ready);
+    const started = vi.fn(async () => {});
+    await expect(withPreviewRepositoryLock(files.repository, started)).rejects.toThrow(/owns this repository/);
+    expect(started).not.toHaveBeenCalled(); expect(await readFile(files.status, 'utf8')).toBe(ready);
+    await expect(stat(files.lock)).rejects.toMatchObject({ code: 'ENOENT' });
+  });
+
+  it('refuses uncertain ownership and an interrupted recovery guard without deleting either', async () => {
+    const files = await lockFixture();
+    await writeFile(files.lock, 'incomplete-or-unknown-owner');
+    await expect(acquirePreviewLock(files.repository, () => false)).rejects.toThrow(/safely verified/);
+    expect(await readFile(files.lock, 'utf8')).toBe('incomplete-or-unknown-owner');
+    await writeFile(files.lock, JSON.stringify({ version: 1, pid: 123456789, owner: randomUUID() }));
+    await mkdir(`${files.lock}.recovery`);
+    await expect(acquirePreviewLock(files.repository, () => false)).rejects.toThrow(/safely verified/);
+    expect((await stat(`${files.lock}.recovery`)).isDirectory()).toBe(true);
+  });
+});
 
 describe('HTTPS preview configuration', () => {
   it('accepts exact trusted deployment and custom-domain origins while rejecting URL-bearing credentials or paths', () => {

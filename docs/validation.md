@@ -7,7 +7,7 @@ The software is integrated and usable for a desktop demonstration. On 2026-09-09
 | Check | Evidence/result |
 | --- | --- |
 | TypeScript protocol, server, client, and renderer | Typecheck and production build pass |
-| Automated TypeScript tests | 113 tests across protocol, server HTTP/WS, MIDI mapping, browser connection recovery, endpoint selection and credential isolation, tunnel supervision, clock/interpolation, all 15 presets, visual math/effects, and calibration |
+| Automated TypeScript tests | 120 tests across protocol, server HTTP/WS, MIDI mapping, browser connection recovery, endpoint selection and credential isolation, tunnel supervision and exclusive ownership, clock/interpolation, all 15 presets, visual math/effects, and calibration |
 | Swift package | Debug/release builds and 13 DSP/MIDI/clock tests pass |
 | Dependency audit | Zero reported vulnerabilities at verification time |
 | Actual native-to-server integration | `npm run verify:system` uses the real Swift executable, authenticated HTTP ingress and two certificate-validated WSS consumers |
@@ -44,6 +44,8 @@ The fixed production frontend is [nanokon-sync-mixed-reality.vercel.app](https:/
 The public ngrok `/health` endpoint and local `/health` returned the same authority epoch with normal TLS verification. A real desktop browser loaded the deployed Vercel page, authenticated the desk, and synchronized Liquid Mercury, Impossible Loom and a DROP into Tidal Silk to a separate deployed audience page through WSS. No browser error-level logs were observed during the successful control flow. These checks use the synthetic feature source; they do not capture music, exercise physical MIDI or measure HMD timing.
 
 The combined runner was then verified using the existing ngrok authentication configuration: public readiness succeeded, only loopback ports 8787/8788 listened, and the ngrok inspection API was disabled. SIGTERM removed readiness and closed both listeners and the owned tunnel; the browser reported Reconnecting. Restarting restored the same ngrok address with a new authority epoch and cleared transport. Runner status and shutdown evidence are under ignored `artifacts/https-preview*.json`; `artifacts/https-preview.log` contains sanitized startup messages.
+
+An exclusive repository lock prevents duplicate invocations from overwriting an active runner's status. Actual second invocations using both the same ports and different ports exited before launching services, preserving the running PID, owner record and ready links. The same protection was verified against a live runner from the earlier version without a lock. Seven focused filesystem tests also cover concurrent stale-owner recovery and ownership-safe release.
 
 The current Wi-Fi resolver could not resolve an allocated Cloudflare Quick Tunnel hostname, so its public readiness check failed. The runner closed its owned resources and ngrok was selected explicitly. No DNS, router, firewall or trust-store settings were changed. No agent-operated HMD test was performed for this deployment.
 

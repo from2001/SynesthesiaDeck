@@ -63,7 +63,9 @@ The runner loads the repository's private `.env` through Node's environment load
 
 The runner fixes the authority host to `127.0.0.1`. Its effective `PUBLIC_ORIGIN` is the newly generated tunnel origin, `TRUSTED_PROXY` is enabled, production serving is enabled, and Vite middleware is disabled. Existing `HOST`, `PUBLIC_ORIGIN`, `TRUSTED_PROXY`, `TLS_CERT` and `TLS_KEY` values do not alter this runner's loopback HTTP transport. HTTPS terminates at the tunnel, while the Mac-side hop remains loopback-only.
 
-Both ports are checked before launching the tunnel. If either is occupied, the runner refuses to continue; it does not terminate the owning process. Stop the existing server yourself, or select unused ports, for example:
+Only one preview runner may own a repository, including invocations with different ports or providers. Before loading configuration or writing any status, the runner acquires `artifacts/https-preview.lock` with a complete PID and unique owner record. Another live or uncertain owner causes immediate refusal without changing `https-preview.json`. A live ready/starting status from an older runner without a lock is also preserved. Use a separate repository checkout if you intentionally need an independent preview and status file.
+
+Both ports are checked before launching the tunnel. If either is occupied by another application, the runner refuses to continue; it does not terminate the owning process. Stop that application yourself, or select unused ports, for example:
 
 ```sh
 PORT=8877 NATIVE_PORT=8878 FRONTEND_ORIGIN=https://your-project.vercel.app npm run preview:https
@@ -77,7 +79,7 @@ For ngrok, authentication stays in its existing configuration file. The runner r
 
 The startup sequence is:
 
-1. Validate configuration, private credential presence, built `dist/index.html`, executable location and both loopback ports.
+1. Acquire exclusive ownership of this repository, then validate configuration, private credential presence, built `dist/index.html`, executable location and both loopback ports.
 2. Create an independent temporary empty cloudflared configuration, or an ngrok overlay referencing the existing private configuration. User configuration files are preserved.
 3. Launch one owned tunnel child targeting only `http://127.0.0.1:PORT`. Parse the generated Cloudflare origin or ngrok's JSON `started tunnel` announcement for that exact upstream; require an exact HTTPS origin.
 4. Start the existing production authority with the generated public origin and trusted frontend allowlist.
@@ -93,7 +95,11 @@ With ngrok, address assignment and reuse depend on the existing account. Always 
 
 ## Shutdown and failure handling
 
-Ctrl+C or SIGTERM closes only this runner's authority and tunnel child, then removes its own temporary configuration. The child receives SIGTERM first; if it does not exit within four seconds, the runner sends SIGKILL to that owned child only. Existing unrelated servers, tunnel processes and hardware are not touched.
+Ctrl+C or SIGTERM closes only this runner's authority and tunnel child, removes its own temporary configuration, writes its final status, and releases its repository lock. The child receives SIGTERM first; if it does not exit within four seconds, the runner sends SIGKILL to that owned child only. Existing unrelated servers, tunnel processes and hardware are not touched. Lock release checks the unique owner record and never deletes a replacement owner's lock.
+
+A lock whose recorded PID is confirmed absent can be reclaimed automatically on restart. A short exclusive `artifacts/https-preview.lock.recovery` directory serializes stale-lock recovery so competing invocations cannot remove a newly acquired lock. PID checks are read-only and do not terminate processes. If the recorded PID is still present, inaccessible, or reused by another process, the runner conservatively refuses to claim ownership.
+
+If a crash interrupts recovery itself, its `.recovery` directory is deliberately retained and prevents further stale-lock reclamation. Likewise, malformed or unverifiable lock records are not automatically deleted. Verify that no preview runner for this repository remains before manually removing that repository's stale `artifacts/https-preview.lock.recovery` directory and, when necessary, `artifacts/https-preview.lock` file. Do not remove them while a runner is active. Restart normally afterward; the existing status is preserved until ownership succeeds.
 
 An unexpected provider exit, failed authority startup, public readiness timeout, or failed local heartbeat also closes the owned resources and withdraws readiness. Either provider has 60 seconds to announce an origin and another 60 seconds for public health verification. The runner does not silently switch an HTTPS failure to another transport or restart into an unreported new URL.
 
@@ -106,4 +112,4 @@ npx vitest run tests/https-preview-runner.test.ts
 npm run typecheck
 ```
 
-The tests use mocked resources and pure functions. They cover exact-origin trust boundaries, provider selection and overrides, port validation and collision refusal, main-port-only arguments for both providers, ngrok inspection overlays, secret exclusion, split log parsing and upstream validation, readiness ordering, cleanup after startup/health/tunnel failures, preserved exit codes, cancellation during authority startup, heartbeat failure, and stale-ready withdrawal. These tests do not launch an authority, tunnel, browser, native capture, or hardware session. Actual public HTTPS/WebSocket access must be verified separately after an authorized runner launch.
+The tests use mocked services, pure functions and disposable temporary directories for filesystem locking. They cover duplicate invocations preserving ready status, separate-port refusal, concurrent stale-lock recovery, ownership-safe release, legacy runner protection, exact-origin trust boundaries, provider selection and overrides, port validation and collision refusal, main-port-only arguments for both providers, ngrok inspection overlays, secret exclusion, split log parsing and upstream validation, readiness ordering, cleanup after startup/health/tunnel failures, preserved exit codes, cancellation during authority startup, heartbeat failure, and stale-ready withdrawal. These tests do not launch an authority, tunnel, browser, native capture, or hardware session. Actual public HTTPS/WebSocket access must be verified separately after an authorized runner launch.

@@ -1,6 +1,7 @@
 import { spawn, type ChildProcess } from 'node:child_process';
+import { randomUUID } from 'node:crypto';
 import { constants, createReadStream, existsSync } from 'node:fs';
-import { access, mkdir, mkdtemp, readFile, rename, rm, stat, writeFile } from 'node:fs/promises';
+import { access, link, mkdir, mkdtemp, readFile, rename, rm, rmdir, stat, unlink, writeFile } from 'node:fs/promises';
 import { createServer } from 'node:net';
 import { homedir, tmpdir } from 'node:os';
 import { createInterface } from 'node:readline';
@@ -34,6 +35,79 @@ export interface PreviewServices {
   heartbeat(configuration: PreviewConfiguration, authority: AuthorityHandle, signal: AbortSignal): Promise<void>;
   status(status: PreviewStatus): Promise<void>;
   log(message: string): void;
+}
+
+interface PreviewLockOwner { version: 1; pid: number; owner: string }
+type ProcessProbe = (pid: number) => boolean;
+const repositoryBusy = () => new PreviewError('Another HTTPS preview owns this repository, or its ownership cannot be safely verified. The existing status was preserved; no process was stopped.');
+const errorCode = (reason: unknown) => (reason as NodeJS.ErrnoException | undefined)?.code;
+
+function processIsAlive(pid: number): boolean {
+  try { process.kill(pid, 0); return true; }
+  catch (reason) { return errorCode(reason) !== 'ESRCH'; }
+}
+
+async function readLockOwner(path: string): Promise<PreviewLockOwner | undefined> {
+  try {
+    if ((await stat(path)).size > 1024) throw repositoryBusy();
+    const value = JSON.parse(await readFile(path, 'utf8')) as Partial<PreviewLockOwner>;
+    if (!value || value.version !== 1 || !Number.isSafeInteger(value.pid) || value.pid! < 1 || typeof value.owner !== 'string' || !/^[a-f0-9-]{36}$/.test(value.owner)) throw repositoryBusy();
+    return value as PreviewLockOwner;
+  } catch (reason) {
+    if (errorCode(reason) === 'ENOENT') return undefined;
+    throw repositoryBusy();
+  }
+}
+
+/** Publish a complete lock atomically. Dead-owner recovery is serialized before inspecting/removing a stale lock. */
+export async function acquirePreviewLock(repository: string, alive: ProcessProbe = processIsAlive): Promise<() => Promise<void>> {
+  const directory = join(repository, 'artifacts');
+  const lockPath = join(directory, 'https-preview.lock'), recoveryPath = `${lockPath}.recovery`;
+  const owner: PreviewLockOwner = { version: 1, pid: process.pid, owner: randomUUID() };
+  const candidate = join(directory, `.https-preview-${owner.owner}.candidate`);
+  let acquired = false;
+  await mkdir(directory, { recursive: true });
+  await writeFile(candidate, `${JSON.stringify(owner)}\n`, { flag: 'wx', mode: 0o600 });
+  const claim = async () => {
+    try { await link(candidate, lockPath); acquired = true; }
+    catch (reason) { if (errorCode(reason) === 'EEXIST') throw repositoryBusy(); throw reason; }
+  };
+  const release = async () => {
+    if (!acquired) return;
+    const current = await readLockOwner(lockPath);
+    if (current?.owner === owner.owner && current.pid === owner.pid) await unlink(lockPath);
+    // Never remove a replacement owner, including if a manual operation replaced our record.
+    acquired = false;
+  };
+  try {
+    try { await claim(); }
+    catch (reason) {
+      if (!(reason instanceof PreviewError)) throw reason;
+      const observed = await readLockOwner(lockPath);
+      if (observed && alive(observed.pid)) throw repositoryBusy();
+      // Other contenders refuse while this guard exists. A guard left by a crash is conservatively not reclaimed.
+      try { await mkdir(recoveryPath); } catch { throw repositoryBusy(); }
+      try {
+        const current = await readLockOwner(lockPath);
+        if (current && alive(current.pid)) throw repositoryBusy();
+        if (current) await unlink(lockPath);
+        await claim();
+      } finally { await rmdir(recoveryPath); }
+    }
+    // Preserve a live status written by an older runner that predates repository locks.
+    try {
+      const previous = JSON.parse(await readFile(join(directory, 'https-preview.json'), 'utf8')) as Partial<PreviewStatus>;
+      if (previous && (previous.state === 'ready' || previous.state === 'starting') && Number.isSafeInteger(previous.pid) && previous.pid! > 0 && alive(previous.pid!)) throw repositoryBusy();
+    } catch (reason) { if (reason instanceof PreviewError) throw reason; }
+    return release;
+  } catch (reason) { await release(); throw reason; }
+  finally { await rm(candidate, { force: true }); }
+}
+
+/** The callback is the only place allowed to publish status, including configuration failures. */
+export async function withPreviewRepositoryLock<T>(repository: string, run: () => Promise<T>, alive: ProcessProbe = processIsAlive): Promise<T> {
+  const release = await acquirePreviewLock(repository, alive);
+  try { return await run(); } finally { await release(); }
 }
 
 /** Explicit origins are trust boundaries; paths, user information and wildcard hosts are never accepted. */
@@ -80,6 +154,7 @@ export const previewHelp = `Usage: npm run preview:https -- [--provider cloudfla
 FRONTEND_ORIGIN is required unless --frontend-origin is supplied. TUNNEL_PROVIDER defaults to cloudflare.
 ngrok uses its existing private authentication configuration; NGROK_CONFIG and NGROK_BIN may select trusted paths.
 PORT defaults to 8787; NATIVE_PORT defaults to 8788 and is never tunneled. Build dist/ before starting.
+Only one preview may own a repository, even when different ports are selected.
 Ctrl+C closes only this runner's authority and tunnel. --help does not start any service.`;
 
 export function previewURLs(configuration: PreviewConfiguration, tunnelOrigin: string): PreviewURLs {
@@ -459,13 +534,21 @@ async function main(): Promise<void> {
   const terminate = () => abort.abort({ exitCode: 143 });
   process.once('SIGINT', interrupt); process.once('SIGTERM', terminate);
   try {
-    const envPath = join(repository, '.env');
-    if (existsSync(envPath)) process.loadEnvFile(envPath);
-    const configuration = previewConfiguration(process.env, process.argv.slice(2), repository);
-    process.exitCode = await supervisePreview(configuration, productionServices(process.env, writeStatus), abort.signal);
+    process.exitCode = await withPreviewRepositoryLock(repository, async () => {
+      try {
+        const envPath = join(repository, '.env');
+        if (existsSync(envPath)) process.loadEnvFile(envPath);
+        const configuration = previewConfiguration(process.env, process.argv.slice(2), repository);
+        return await supervisePreview(configuration, productionServices(process.env, writeStatus), abort.signal);
+      } catch (reason) {
+        const error = failure(reason);
+        await writeStatus({ version: 1, state: 'failed', updatedAt: new Date().toISOString(), pid: process.pid, message: error.message }).catch(() => {});
+        console.error(error.message); return error.exitCode;
+      }
+    });
   } catch (reason) {
     const error = failure(reason);
-    await writeStatus({ version: 1, state: 'failed', updatedAt: new Date().toISOString(), pid: process.pid, message: error.message }).catch(() => {});
+    // Lock rejection must not overwrite the status belonging to another invocation.
     console.error(error.message); process.exitCode = error.exitCode;
   } finally { process.off('SIGINT', interrupt); process.off('SIGTERM', terminate); }
 }
