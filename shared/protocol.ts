@@ -44,6 +44,7 @@ export type ShowEvent = z.infer<typeof EventSchema>;
 export const ActiveEffectSchema = z.object({
   id: z.string(), kind: z.enum(['drop', 'burst']), effectiveAt: time,
   duration: z.number().finite().positive(), strength: unit, slot, seed: z.number().int(),
+  frozenPhase: z.number().finite().optional(),
 });
 export type ActiveEffect = z.infer<typeof ActiveEffectSchema>;
 export const ShowStateSchema = z.object({
@@ -103,7 +104,7 @@ export function initialState(epoch: string, now = 0, seed = 48291): ShowState {
 }
 
 export function motionAt(state: ShowState, now: number): number {
-  return state.motion.phase + (state.running ? Math.max(0, now - state.motion.at) * .001 * state.motion.rate : 0);
+  return state.motion.phase + (state.running && !state.toggles[7] ? Math.max(0, now - state.motion.at) * .001 * state.motion.rate : 0);
 }
 
 /** Pure state transitions shared by the authority and scheduled client playback. */
@@ -131,7 +132,8 @@ export function applyEvent(state: ShowState, event: ShowEvent): ShowState {
   } else if ((c.type === 'drop' || c.type === 'burst') && state.running) {
     next.effects.push({ id: event.id, kind: c.type, effectiveAt: event.effectiveAt,
       duration: c.type === 'drop' ? c.duration : 850, strength: c.type === 'drop' ? c.strength : .65,
-      slot: c.type === 'burst' ? c.slot : 0, seed: event.seed });
+      slot: c.type === 'burst' ? c.slot : 0, seed: event.seed,
+      ...(c.type === 'burst' && c.slot === 7 ? { frozenPhase: motionAt(state, event.effectiveAt) } : {}) });
     next.effects = next.effects.slice(-16);
   }
   return next;
