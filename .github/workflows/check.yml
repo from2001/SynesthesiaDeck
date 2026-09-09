@@ -17,9 +17,22 @@ jobs:
     runs-on: macos-latest
     steps:
       - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
       - name: Build and test native package when available
         run: |
           if [ -f native/Package.swift ]; then
             swift build --package-path native
             swift test --package-path native
           fi
+      - name: Verify Swift features and MIDI through trusted WSS
+        run: npm run verify:system
+        env:
+          VERIFY_OUTPUT: artifacts/system-verification.json
+      - uses: actions/upload-artifact@v4
+        with:
+          name: desktop-system-verification
+          path: artifacts/system-verification.json
