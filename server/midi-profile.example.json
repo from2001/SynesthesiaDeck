@@ -1,0 +1,13 @@
+{
+  "name": "Korg nanoKONTROL2 factory CC",
+  "channel": 0,
+  "buttonMode": "cc",
+  "faders": [0, 1, 2, 3, 4, 5, 6, 7],
+  "knobs": [16, 17, 18, 19, 20, 21, 22, 23],
+  "scenes": [32, 33, 34, 35, 36, 37, 38, 39],
+  "bursts": [48, 49, 50, 51, 52, 53, 54, 55],
+  "toggles": [64, 65, 66, 67, 68, 69, 70, 71],
+  "transport": { "previous": 43, "next": 44, "clear": 42, "start": 41, "drop": 45 },
+  "pickupTolerance": 0.015748031496062992,
+  "debounceMs": 35
+}
