@@ -14,7 +14,7 @@ npm run dev -- --synthetic
 
 Open [the VJ desk](http://127.0.0.1:8787). Copy `CONTROL_TOKEN` from the private `.env` file into **Control token**, then **Connect desk** and **Play**. Synthetic audio is explicitly labeled. Open [audience view](http://127.0.0.1:8787/?view=hmd) in another tab to observe the shared show. This local desktop demonstration does not require a headset or native audio permission.
 
-The show starts cleared. **Play** resumes motion, **Clear** removes all visuals/effects, and **Reset** restores defaults. Select one of five scenes, adjust the eight faders and scene knobs, trigger M one-shots or R toggles, and use **DROP** for the contraction/flash/explosion sequence. DROP can stay in the current scene or transition to another.
+The show starts cleared. **Play** resumes motion, **Clear** removes all visuals/effects, and **Reset** restores defaults. Select one of 15 scenes grouped into Signal, Organic, and Structures, adjust the eight faders and scene knobs, trigger M one-shots or R toggles, and use **DROP** for the contraction/flash/explosion sequence. DROP can stay in the current scene or transition to another. The [scene catalog](docs/scene-catalog.md) covers silk curtains, branching colonies, jellyfish, liquid surfaces, flocks, folded mechanisms, moiré lattices, woven knots, floating ruins, and polygonal tunnels alongside the original five signal scenes. Physical S1–S8 select presets 01–08; REW/FF browse all 15.
 
 ## Use real system audio and MIDI
 
@@ -22,11 +22,11 @@ Start the server without `--synthetic`. Follow [the native Host Agent guide](doc
 
 ## Connect headsets later
 
-Remote headset browsers require a trusted HTTPS origin and WSS. Follow [server and TLS setup](docs/server.md), then use the audience link shown on the desk. The default server only listens on loopback; copying a loopback URL to a remote headset is not a LAN setup. **Enter MR** must be initiated in a supported browser. **Align room** optionally records a floor origin and forward point with a controller.
+Follow the [Quest preview guide](docs/hmd-preview.md) to browse all 15 scenes in MR. For a first USB preview, ADB reverse maps the headset's `http://localhost:8787/?view=hmd` to the Mac. Wireless headset access requires trusted HTTPS/WSS following [server and TLS setup](docs/server.md). The default server only listens on loopback; a copied loopback URL requires the USB mapping to reach this Mac. **Enter MR** must be initiated in a supported browser, then follow the floor A/B alignment prompts. The Mac's **Preview scene** dropdown and **Previous / Next** buttons switch content while the headset stays in MR.
 
 The renderer follows the supplied VoXelo `forceWebGL` / TSL transparent Bloom path. See [rendering and calibration](docs/rendering.md) for quality controls and limitations.
 
-**Hardware testing is currently deferred at the user's request. Do not use the connected Quest 3S; it is assigned to another project.** Desktop results do not prove stereo MR/Bloom, shared physical alignment, or two-HMD synchronization.
+**Hardware testing is currently deferred at the user's request. Do not use the connected Quest 3S; it is assigned to another project.** Desktop results do not prove stereo MR/Bloom, shared physical alignment, or two-HMD synchronization. The ten added presets have separate hardware acceptance requirements; the earlier five-scene validation remains historical evidence for those original scenes only.
 
 ## Validation and delivery
 

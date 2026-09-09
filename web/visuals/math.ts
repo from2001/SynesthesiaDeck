@@ -70,7 +70,7 @@ export function visualFrame(state: ShowState, audio: AudioFeatures, time: number
   return { state, audio, time, phase, effects };
 }
 
-/** Evaluate a particle from absolute show phase. No frame history or quality budget is an input. */
+/** Evaluate an original-bank particle from absolute phase. Experimental banks own their mesh samplers. */
 export function sampleParticle(frame: VisualFrame, identity: ParticleIdentity, out: VisualSample = { x: 0, y: 0, z: 0, size: 1, angle: 0, hue: 0 }): VisualSample {
   const { state, audio, phase: t, effects } = frame;
   const p = state.sceneParams, { a, b, c, d, index } = identity;

@@ -1,16 +1,17 @@
 import { z } from 'zod';
+import { SCENE_COUNT } from './scenes.js';
+export { SCENES, SCENE_COUNT } from './scenes.js';
 
 export const VERSION = 1 as const;
 export const FRAME_HZ = 30;
 export const EVENT_LEAD_MS = 180;
 export const INTERPOLATION_MS = 100;
-export const SCENES = ['CODE CATHEDRAL', 'VECTOR FIELD', 'NEON DATA CITY', 'GLITCH STORM', 'SINGULARITY'] as const;
 export const CONTROL_KEYS = ['intensity', 'density', 'speed', 'scale', 'distortion', 'glow', 'glitch', 'masterFX'] as const;
 export const EFFECT_NAMES = ['Orbit', 'Pulse', 'Twist', 'Mirror', 'Scatter', 'Strobe', 'Prism', 'Freeze'] as const;
 export type ControlKey = typeof CONTROL_KEYS[number];
 export const unit = z.number().finite().min(0).max(1);
 const time = z.number().finite().nonnegative();
-const sceneId = z.number().int().min(0).max(4);
+const sceneId = z.number().int().min(0).max(SCENE_COUNT - 1);
 const slot = z.number().int().min(0).max(7);
 export const AudioSchema = z.object({
   level: unit, bass: unit, lowMid: unit, mid: unit, high: unit, beat: unit,

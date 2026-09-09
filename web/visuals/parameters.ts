@@ -15,6 +15,16 @@ export const PRESET_PARAMETERS = [
   ['City spread', 'Tower height', 'Street width', 'Wave rings', 'Building taper', 'Palette hue', 'Grid height', 'Window pulse'],
   ['Storm spread', 'Vertical spread', 'Shard size', 'Burst lanes', 'Spin', 'Palette hue', 'Code ratio', 'Tear strength'],
   ['Disk radius', 'Core height', 'Particle size', 'Spiral arms', 'Accretion twist', 'Palette hue', 'Core radius', 'Infall stretch'],
+  ['Ribbon spread', 'Curtain height', 'Ribbon thickness', 'Fold frequency', 'Silk curl', 'Palette hue', 'Ribbon length', 'Silk shimmer'],
+  ['Colony spread', 'Stem height', 'Branch thickness', 'Branch angle', 'Stem bend', 'Palette hue', 'Canopy spread', 'Spore drift'],
+  ['Swarm spread', 'Float height', 'Bell detail', 'Tendril count', 'Bell pulse', 'Palette hue', 'Bell radius', 'Tentacle curl'],
+  ['Fluid radius', 'Surface height', 'Ripple depth', 'Ripple frequency', 'Viscosity', 'Palette hue', 'Lobe count', 'Surface sheen'],
+  ['Flock spread', 'Flight height', 'Wing span', 'Wingbeat', 'Flight bank', 'Palette hue', 'Flock cohesion', 'Trail stretch'],
+  ['Fold span', 'Mechanism height', 'Facet size', 'Fold count', 'Fold angle', 'Palette hue', 'Tessellation radius', 'Crease contrast'],
+  ['Lattice span', 'Observatory height', 'Line width', 'Lattice frequency', 'Lattice angle', 'Palette hue', 'Layer separation', 'Interference drift'],
+  ['Weave spread', 'Loom height', 'Thread thickness', 'Weave count', 'Braid twist', 'Palette hue', 'Knot radius', 'Weave tension'],
+  ['Ruin span', 'Ruin height', 'Block size', 'Layer count', 'Levitation', 'Palette hue', 'Arch span', 'Erosion'],
+  ['Portal spread', 'Portal height', 'Aperture thickness', 'Polygon sides', 'Tunnel twist', 'Palette hue', 'Tunnel depth', 'Spectral split'],
 ] as const;
 
 export const EFFECT_DESCRIPTIONS = [

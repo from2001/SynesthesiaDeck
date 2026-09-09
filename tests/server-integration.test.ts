@@ -147,11 +147,11 @@ describe('real HTTP and WebSocket service', () => {
     const hmd = await connect(server);
     await hmd.wait('snapshot');
     const sendMidi = (data1: number, data2: number) => native(server, { version: 1, type: 'midi', timestamp: server.authority.now(), status: 0xb0, data1, data2 });
-    await sendMidi(36, 127);
+    await sendMidi(39, 127);
     await sendMidi(44, 127);
     const events = hmd.messages.filter(message => message.type === 'event');
     await hmd.wait('event', message => message.event.sequence === 2);
-    expect(server.authority.projected().scene).toBe(0);
+    expect(server.authority.projected().scene).toBe(8);
     await sendMidi(64, 127);
     await sendMidi(64, 0);
     await new Promise(resolve => setTimeout(resolve, 40));

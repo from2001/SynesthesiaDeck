@@ -30,4 +30,4 @@ Use the supplied [VoXelo reference](https://github.com/from2001/VoXelo/blob/e463
 
 ## Validation boundaries
 
-Node tests and browser screenshots do not establish actual XR stereo, a physical MIDI performance, or two-headset synchronization. Required hardware evidence stays open in the GitHub issues until measured. Scene slots 6–8 are reserved, not extra unimplemented named presets.
+Node tests and browser screenshots do not establish actual XR stereo, a physical MIDI performance, or two-headset synchronization. Required hardware evidence stays open in the GitHub issues until measured. The scene registry now contains 15 stable IDs (0–14), preserving the original five IDs. Physical S1–S8 select the first eight presets; REW/FF browse all 15. The ten added presets require their own desktop and HMD acceptance evidence; historical checks of the original five do not validate the additions.

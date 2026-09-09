@@ -1,5 +1,6 @@
 import './style.css';
-import { CONTROL_KEYS, EFFECT_NAMES, SCENES, type Command } from '../shared/protocol';
+import { CONTROL_KEYS, EFFECT_NAMES, SCENES, SCENE_COUNT, type Command } from '../shared/protocol';
+import { MIDI_SCENE_SHORTCUT_COUNT, SCENE_CATALOG, SCENE_GROUPS, sceneNumber } from '../shared/scenes';
 import { ShowConnection } from './connection';
 import { ShowRenderer } from './visuals/renderer';
 import { PRESET_PARAMETERS } from './visuals/parameters';
@@ -16,9 +17,10 @@ app.innerHTML = `
       <section class="panel">
         <form id="login" class="login"><input id="token" type="password" autocomplete="off" placeholder="Control token" aria-label="Control token"><button type="submit">Connect desk</button><p id="access-status">Audience preview · enter your control token to perform.</p></form>
         <div class="viewer" id="viewer"><div class="preview-top"><span>LIVE PREVIEW</span><span id="preview-clock">WAITING FOR SHOW</span></div><div class="preview-bottom"><div><div class="scene-caption" id="scene-caption">CODE CATHEDRAL</div><small id="scene-description">A quiet architecture of light and language.</small></div><small id="fps">— FPS</small></div></div>
+        <div class="scene-preview-nav" aria-label="Preview scene navigation"><button class="command" id="scene-previous" aria-label="Previous scene">← Previous</button><select class="command" id="preview-scene" aria-label="Preview scene">${SCENE_GROUPS.map(group => `<optgroup label="${group.name}">${SCENE_CATALOG.map((scene, i) => ({ ...scene, i })).filter(scene => scene.group === group.id).map(scene => `<option value="${scene.i}">${sceneNumber(scene.i)} / ${scene.name}</option>`).join('')}</optgroup>`).join('')}</select><button class="command" id="scene-next" aria-label="Next scene">Next →</button></div>
         <div class="preview-actions"><button id="enter-mr">Enter MR ↗</button><button id="calibrate">Align room</button><button id="reset-calibration">Reset alignment</button><span class="quality"><label for="quality">Quality </label><select id="quality"><option value="low">Low</option><option value="medium" selected>Medium</option><option value="high">High</option></select></span><span id="xr-status" class="tag">DESKTOP PREVIEW</span></div>
       </section>
-      <section class="panel scenes"><div class="panel-head"><h2>Scene bank</h2><span class="tag" id="scene-status">5 PRESETS / 8 SLOTS</span></div><div class="scene-list">${SCENES.map((name, i) => `<button class="scene-button command" data-scene="${i}"><span class="number">0${i + 1} / S${i + 1}</span>${name}</button>`).join('')}${[6, 7, 8].map(i => `<button class="scene-button reserved" disabled aria-label="Scene ${i} reserved"><span class="number">0${i}</span>—</button>`).join('')}</div></section>
+      <section class="panel scenes"><div class="panel-head"><h2>Scene bank</h2><span class="tag" id="scene-status">${SCENE_COUNT} PRESETS</span></div><div class="scene-bank">${SCENE_GROUPS.map(group => `<section class="scene-group scene-group-${group.id}" aria-labelledby="group-${group.id}"><div class="scene-group-head"><h3 id="group-${group.id}">${group.name}</h3><span>${group.subtitle}</span></div><div class="scene-list">${SCENE_CATALOG.map((scene, i) => ({ ...scene, i })).filter(scene => scene.group === group.id).map(scene => `<button class="scene-button command" data-scene="${scene.i}" aria-pressed="false" title="${scene.synopsis}"><span class="scene-card-top"><span class="number">${sceneNumber(scene.i)}</span><span class="scene-shortcut">${scene.i < MIDI_SCENE_SHORTCUT_COUNT ? `S${scene.i + 1}` : 'REW / FF'}</span></span><strong>${scene.name}</strong><span class="scene-synopsis">${scene.synopsis}</span></button>`).join('')}</div></section>`).join('')}</div><p class="scene-midi-note">nanoKONTROL2 · S1–S8 select presets 01–08 · REW / FF browse all ${SCENE_COUNT}</p></section>
       <section class="panel controls"><div class="panel-head"><h2>Shape the space</h2><span class="tag">FADERS 01 — 08</span></div><div class="control-grid">${CONTROL_KEYS.map((key, i) => `<div class="fader"><label for="control-${key}">${key === 'masterFX' ? 'Master FX' : key[0].toUpperCase() + key.slice(1)}</label><input class="command" id="control-${key}" data-control="${key}" type="range" min="0" max="1" step="0.01" value="0.5" aria-label="${key}"><output id="value-${key}">50</output></div>`).join('')}</div></section>
       <section class="panel controls"><div class="panel-head"><h2>Scene expression</h2><span class="tag">KNOBS + EFFECTS</span></div><div class="knobs">${Array.from({ length: 8 }, (_, i) => `<div class="knob"><label for="knob-${i}"><span id="knob-name-${i}">Parameter ${i + 1}</span><output id="knob-value-${i}">50</output></label><input class="command" id="knob-${i}" data-knob="${i}" type="range" min="0" max="1" step="0.01" value="0.5"></div>`).join('')}</div><div class="effect-grid">${EFFECT_NAMES.map((name, i) => `<div class="effect-cell"><button class="command" data-burst="${i}" title="M${i + 1} one-shot">${name} ↗</button><button class="command" data-toggle="${i}" aria-pressed="false" title="R${i + 1} toggle">R${i + 1} · Off</button></div>`).join('')}</div></section>
     </div><aside class="sidebar">
@@ -40,11 +42,6 @@ $<HTMLInputElement>('token').value = savedToken;
 let lastUi = 0, lastTelemetry = 0, clientSignature = '';
 const editedAt = new Map<string, number>();
 const delayed = new Map<string, number>();
-const descriptions = [
-  'A quiet architecture of light and language.', 'Follow the currents between sound and space.',
-  'The floor becomes a city. Every beat builds.', 'Fragments collide at the edge of the signal.',
-  'Everything falls inward. The next moment is yours.',
-];
 const knobLabels = PRESET_PARAMETERS;
 
 function startConnection(token: string) {
@@ -71,10 +68,17 @@ function schedule(key: string, command: Command) {
 $('play').addEventListener('click', () => void send({ type: 'start' }));
 $('stop').addEventListener('click', () => void send({ type: 'clear' }));
 $('reset').addEventListener('click', () => void send({ type: 'reset' }));
+function projectedScene(): number {
+  const queuedScene = connection.timeline.pendingEvents.filter(event => event.command.type === 'scene').at(-1)?.command;
+  return queuedScene?.type === 'scene' ? queuedScene.scene : (connection.timeline.state?.scene ?? 0);
+}
+$('scene-previous').addEventListener('click', () => void send({ type: 'scene', scene: (projectedScene() + SCENE_COUNT - 1) % SCENE_COUNT }));
+$('scene-next').addEventListener('click', () => void send({ type: 'scene', scene: (projectedScene() + 1) % SCENE_COUNT }));
+$<HTMLSelectElement>('preview-scene').addEventListener('change', event => void send({ type: 'scene', scene: Number((event.currentTarget as HTMLSelectElement).value) }));
 $('drop').addEventListener('click', () => {
   const selection = $<HTMLSelectElement>('drop-target').value;
-  const scene = connection.timeline.state?.scene ?? 0;
-  void send({ type: 'drop', duration: 1800, strength: .7, ...(selection === 'stay' ? {} : { targetScene: selection === 'next' ? (scene + 1) % 5 : Number(selection) }) });
+  const scene = projectedScene();
+  void send({ type: 'drop', duration: 1800, strength: .7, ...(selection === 'stay' ? {} : { targetScene: selection === 'next' ? (scene + 1) % SCENE_COUNT : Number(selection) }) });
 });
 document.querySelectorAll<HTMLButtonElement>('[data-scene]').forEach(button => button.addEventListener('click', () => void send({ type: 'scene', scene: Number(button.dataset.scene) })));
 document.querySelectorAll<HTMLInputElement>('[data-control]').forEach(input => input.addEventListener('input', () => {
@@ -144,7 +148,7 @@ function frame() {
     $('connection-status').textContent = connection.connected ? (connection.clock.locked ? 'Show connected' : 'Synchronizing') : connection.status;
     $('connection-status').classList.toggle('live', connection.connected);
     const canControl = connection.connected && connection.role === 'dashboard';
-    document.querySelectorAll<HTMLButtonElement | HTMLInputElement>('.command').forEach(element => { element.disabled = !canControl; });
+    document.querySelectorAll<HTMLButtonElement | HTMLInputElement | HTMLSelectElement>('.command').forEach(element => { element.disabled = !canControl; });
     if (canControl) $('access-status').textContent = 'VJ desk connected · MIDI and screen controls share one show.';
     $('audio-mode').textContent = connection.source.capture === 'synthetic' ? 'SYNTHETIC' : connection.source.capture === 'running' ? 'SYSTEM' : connection.source.capture.toUpperCase();
     $('source-info').textContent = `${connection.source.detail} · MIDI ${connection.source.midi}`;
@@ -155,11 +159,14 @@ function frame() {
       }
       $('bpm').textContent = audio.bpmConfidence > .2 ? String(Math.round(audio.bpm)) : '—';
       $('beat-lamp').style.opacity = String(.1 + audio.beat * .9);
-      $('scene-caption').textContent = SCENES[state.scene]; $('scene-description').textContent = state.running ? descriptions[state.scene] : 'Show cleared. Press Play to bring the space to life.';
+      const sceneSelect = $<HTMLSelectElement>('preview-scene');
+      if (document.activeElement !== sceneSelect) sceneSelect.value = String(state.scene);
+      $('scene-caption').textContent = SCENES[state.scene]; $('scene-description').textContent = state.running ? SCENE_CATALOG[state.scene].synopsis : 'Show cleared. Press Play to bring the space to life.';
       const pending = connection.timeline.pendingEvents.filter(event => event.command.type === 'scene').at(-1);
-      $('scene-status').textContent = pending?.command.type === 'scene' ? `QUEUED → ${pending.command.scene + 1}` : '5 PRESETS / 8 SLOTS';
+      $('scene-status').textContent = pending?.command.type === 'scene' ? `QUEUED → ${sceneNumber(pending.command.scene)}` : `${SCENE_COUNT} PRESETS`;
       document.querySelectorAll<HTMLElement>('[data-scene]').forEach(button => {
         button.classList.toggle('active', Number(button.dataset.scene) === state.scene);
+        button.setAttribute('aria-pressed', String(Number(button.dataset.scene) === state.scene));
         button.classList.toggle('pending', pending?.command.type === 'scene' && Number(button.dataset.scene) === pending.command.scene);
       });
       for (const key of CONTROL_KEYS) {
