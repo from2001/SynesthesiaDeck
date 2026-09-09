@@ -7,6 +7,7 @@
     "node": ">=22.12"
   },
   "scripts": {
+    "setup": "node scripts/setup.mjs",
     "dev": "tsx server/index.ts",
     "build": "vite build",
     "start": "tsx server/index.ts --production",
@@ -14,7 +15,8 @@
     "test": "vitest run",
     "check": "npm run typecheck && npm test && npm run build",
     "native:build": "swift build --package-path native",
-    "native:test": "swift test --package-path native"
+    "native:test": "swift test --package-path native",
+    "verify:system": "tsx scripts/verify-system.ts"
   },
   "dependencies": {
     "three": "0.183.0",
