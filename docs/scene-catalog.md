@@ -50,4 +50,4 @@ M1–M8 one-shots and R1–R8 persistent effects retain the common Orbit, Pulse,
 
 The initial five-scene desktop evidence remains valid historical evidence for those scenes. It is not evidence for the ten additions. Validate every new preset under silence and synthetic/live features, minimum/maximum controls, each quality tier, rapid scene changes, DROP/STOP, and transparency before performance. A procedural metallic sheen does not imply capture or reflection of the real room.
 
-Real-headset validation remains deferred at the user's request. Do not use the connected Quest 3S assigned to another project. Stereo MR, transparent Bloom in passthrough, physical scale/alignment, sustained frame rate, and two-headset presentation skew still need explicit evidence for the expanded catalog.
+The user reported successful HMD viewing on 2026-09-09. Agent-operated headset validation remains deferred until the device is explicitly available for this project. Measured stereo MR, transparent Bloom in passthrough, physical scale/alignment, sustained frame rate, and two-headset presentation skew still need explicit evidence for the expanded catalog.

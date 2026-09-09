@@ -2,6 +2,12 @@
 
 The Mac remains the show controller. The headset opens the audience page, enters MR, and follows scene changes from the Mac. No APK installation is required. This guide is prepared for a headset that is available for this project; the connected Quest 3S assigned to another project has not been operated or tested.
 
+## Fixed HTTPS URL over Wi-Fi
+
+Use the [Vercel frontend and Mac tunnel guide](deployment.md) for the configured wireless preview. Keep its Mac runner active, open [the fixed audience page](https://nanokon-sync-mixed-reality.vercel.app/?view=hmd) in Quest Browser, and use [the fixed desk](https://nanokon-sync-mixed-reality.vercel.app) on the Mac. Authenticate only the desk and press **Play**. On the headset, choose **Low**, enter MR, and follow the A/B alignment steps below. This route needs Internet access but no headset USB connection.
+
+If the Mac runner reports a changed public endpoint, use its freshly printed audience link or update **Show connection → Mac show URL**. A deployed page remains available when the Mac is offline, but live show synchronization requires the authority and tunnel to be running.
+
 ## First preview over USB
 
 Meta documents ADB reverse port forwarding for loading a local development server in Quest Browser. Forwarding the headset's `localhost` to the Mac allows a potentially trustworthy loopback origin without setting up a LAN certificate. This is different from opening an ordinary HTTP LAN address.
@@ -41,7 +47,7 @@ When finished, exit MR in the headset. If this session created the reverse mappi
 adb -s QUEST_SERIAL reverse --remove tcp:8787
 ```
 
-## Wireless preview
+## Local HTTPS alternative
 
 Use a trusted HTTPS/WSS endpoint following [server and TLS setup](server.md#secure-venue-delivery). Open that endpoint with `?view=hmd` on each headset. A remote `http://MAC_LAN_IP:8787` page is not sufficient for WebXR, and the default server only binds to Mac loopback. The desktop audience link is a headset-ready link only when its origin is actually reachable and trusted from that headset, or when the USB mapping above is active.
 
