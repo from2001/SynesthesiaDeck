@@ -40,4 +40,14 @@ describe('shared contract', () => {
     expect(state.seed).toBe(42);
     expect(state.motion.phase).toBe(0);
   });
+  it('anchors frozen toggle and one-shot phase across subsequent controls', () => {
+    let state = applyEvent(initialState('test'), event(1, 0, { type: 'start' }));
+    state = applyEvent(state, event(2, 1000, { type: 'burst', slot: 7 }));
+    expect(state.effects[0].frozenPhase).toBeCloseTo(1.05);
+    state = applyEvent(state, event(3, 1100, { type: 'toggle', slot: 7, value: true }));
+    const phase = motionAt(state, 1500);
+    state = applyEvent(state, event(4, 1300, { type: 'control', key: 'speed', value: 1 }));
+    expect(motionAt(state, 1700)).toBe(phase);
+    expect(state.effects[0].frozenPhase).toBeCloseTo(1.05);
+  });
 });
