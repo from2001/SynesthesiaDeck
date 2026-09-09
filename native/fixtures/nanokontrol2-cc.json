@@ -1,0 +1,463 @@
+{
+  "controls" : [
+    {
+      "behavior" : "continuous",
+      "channel" : 1,
+      "kind" : "cc",
+      "maximum" : 127,
+      "minimum" : 0,
+      "name" : "fader1",
+      "number" : 0
+    },
+    {
+      "behavior" : "continuous",
+      "channel" : 1,
+      "kind" : "cc",
+      "maximum" : 127,
+      "minimum" : 0,
+      "name" : "fader2",
+      "number" : 1
+    },
+    {
+      "behavior" : "continuous",
+      "channel" : 1,
+      "kind" : "cc",
+      "maximum" : 127,
+      "minimum" : 0,
+      "name" : "fader3",
+      "number" : 2
+    },
+    {
+      "behavior" : "continuous",
+      "channel" : 1,
+      "kind" : "cc",
+      "maximum" : 127,
+      "minimum" : 0,
+      "name" : "fader4",
+      "number" : 3
+    },
+    {
+      "behavior" : "continuous",
+      "channel" : 1,
+      "kind" : "cc",
+      "maximum" : 127,
+      "minimum" : 0,
+      "name" : "fader5",
+      "number" : 4
+    },
+    {
+      "behavior" : "continuous",
+      "channel" : 1,
+      "kind" : "cc",
+      "maximum" : 127,
+      "minimum" : 0,
+      "name" : "fader6",
+      "number" : 5
+    },
+    {
+      "behavior" : "continuous",
+      "channel" : 1,
+      "kind" : "cc",
+      "maximum" : 127,
+      "minimum" : 0,
+      "name" : "fader7",
+      "number" : 6
+    },
+    {
+      "behavior" : "continuous",
+      "channel" : 1,
+      "kind" : "cc",
+      "maximum" : 127,
+      "minimum" : 0,
+      "name" : "fader8",
+      "number" : 7
+    },
+    {
+      "behavior" : "continuous",
+      "channel" : 1,
+      "kind" : "cc",
+      "maximum" : 127,
+      "minimum" : 0,
+      "name" : "knob1",
+      "number" : 16
+    },
+    {
+      "behavior" : "continuous",
+      "channel" : 1,
+      "kind" : "cc",
+      "maximum" : 127,
+      "minimum" : 0,
+      "name" : "knob2",
+      "number" : 17
+    },
+    {
+      "behavior" : "continuous",
+      "channel" : 1,
+      "kind" : "cc",
+      "maximum" : 127,
+      "minimum" : 0,
+      "name" : "knob3",
+      "number" : 18
+    },
+    {
+      "behavior" : "continuous",
+      "channel" : 1,
+      "kind" : "cc",
+      "maximum" : 127,
+      "minimum" : 0,
+      "name" : "knob4",
+      "number" : 19
+    },
+    {
+      "behavior" : "continuous",
+      "channel" : 1,
+      "kind" : "cc",
+      "maximum" : 127,
+      "minimum" : 0,
+      "name" : "knob5",
+      "number" : 20
+    },
+    {
+      "behavior" : "continuous",
+      "channel" : 1,
+      "kind" : "cc",
+      "maximum" : 127,
+      "minimum" : 0,
+      "name" : "knob6",
+      "number" : 21
+    },
+    {
+      "behavior" : "continuous",
+      "channel" : 1,
+      "kind" : "cc",
+      "maximum" : 127,
+      "minimum" : 0,
+      "name" : "knob7",
+      "number" : 22
+    },
+    {
+      "behavior" : "continuous",
+      "channel" : 1,
+      "kind" : "cc",
+      "maximum" : 127,
+      "minimum" : 0,
+      "name" : "knob8",
+      "number" : 23
+    },
+    {
+      "behavior" : "momentary",
+      "channel" : 1,
+      "kind" : "cc",
+      "maximum" : 127,
+      "minimum" : 0,
+      "name" : "solo1",
+      "number" : 32
+    },
+    {
+      "behavior" : "momentary",
+      "channel" : 1,
+      "kind" : "cc",
+      "maximum" : 127,
+      "minimum" : 0,
+      "name" : "solo2",
+      "number" : 33
+    },
+    {
+      "behavior" : "momentary",
+      "channel" : 1,
+      "kind" : "cc",
+      "maximum" : 127,
+      "minimum" : 0,
+      "name" : "solo3",
+      "number" : 34
+    },
+    {
+      "behavior" : "momentary",
+      "channel" : 1,
+      "kind" : "cc",
+      "maximum" : 127,
+      "minimum" : 0,
+      "name" : "solo4",
+      "number" : 35
+    },
+    {
+      "behavior" : "momentary",
+      "channel" : 1,
+      "kind" : "cc",
+      "maximum" : 127,
+      "minimum" : 0,
+      "name" : "solo5",
+      "number" : 36
+    },
+    {
+      "behavior" : "momentary",
+      "channel" : 1,
+      "kind" : "cc",
+      "maximum" : 127,
+      "minimum" : 0,
+      "name" : "solo6",
+      "number" : 37
+    },
+    {
+      "behavior" : "momentary",
+      "channel" : 1,
+      "kind" : "cc",
+      "maximum" : 127,
+      "minimum" : 0,
+      "name" : "solo7",
+      "number" : 38
+    },
+    {
+      "behavior" : "momentary",
+      "channel" : 1,
+      "kind" : "cc",
+      "maximum" : 127,
+      "minimum" : 0,
+      "name" : "solo8",
+      "number" : 39
+    },
+    {
+      "behavior" : "momentary",
+      "channel" : 1,
+      "kind" : "cc",
+      "maximum" : 127,
+      "minimum" : 0,
+      "name" : "mute1",
+      "number" : 48
+    },
+    {
+      "behavior" : "momentary",
+      "channel" : 1,
+      "kind" : "cc",
+      "maximum" : 127,
+      "minimum" : 0,
+      "name" : "mute2",
+      "number" : 49
+    },
+    {
+      "behavior" : "momentary",
+      "channel" : 1,
+      "kind" : "cc",
+      "maximum" : 127,
+      "minimum" : 0,
+      "name" : "mute3",
+      "number" : 50
+    },
+    {
+      "behavior" : "momentary",
+      "channel" : 1,
+      "kind" : "cc",
+      "maximum" : 127,
+      "minimum" : 0,
+      "name" : "mute4",
+      "number" : 51
+    },
+    {
+      "behavior" : "momentary",
+      "channel" : 1,
+      "kind" : "cc",
+      "maximum" : 127,
+      "minimum" : 0,
+      "name" : "mute5",
+      "number" : 52
+    },
+    {
+      "behavior" : "momentary",
+      "channel" : 1,
+      "kind" : "cc",
+      "maximum" : 127,
+      "minimum" : 0,
+      "name" : "mute6",
+      "number" : 53
+    },
+    {
+      "behavior" : "momentary",
+      "channel" : 1,
+      "kind" : "cc",
+      "maximum" : 127,
+      "minimum" : 0,
+      "name" : "mute7",
+      "number" : 54
+    },
+    {
+      "behavior" : "momentary",
+      "channel" : 1,
+      "kind" : "cc",
+      "maximum" : 127,
+      "minimum" : 0,
+      "name" : "mute8",
+      "number" : 55
+    },
+    {
+      "behavior" : "momentary",
+      "channel" : 1,
+      "kind" : "cc",
+      "maximum" : 127,
+      "minimum" : 0,
+      "name" : "record1",
+      "number" : 64
+    },
+    {
+      "behavior" : "momentary",
+      "channel" : 1,
+      "kind" : "cc",
+      "maximum" : 127,
+      "minimum" : 0,
+      "name" : "record2",
+      "number" : 65
+    },
+    {
+      "behavior" : "momentary",
+      "channel" : 1,
+      "kind" : "cc",
+      "maximum" : 127,
+      "minimum" : 0,
+      "name" : "record3",
+      "number" : 66
+    },
+    {
+      "behavior" : "momentary",
+      "channel" : 1,
+      "kind" : "cc",
+      "maximum" : 127,
+      "minimum" : 0,
+      "name" : "record4",
+      "number" : 67
+    },
+    {
+      "behavior" : "momentary",
+      "channel" : 1,
+      "kind" : "cc",
+      "maximum" : 127,
+      "minimum" : 0,
+      "name" : "record5",
+      "number" : 68
+    },
+    {
+      "behavior" : "momentary",
+      "channel" : 1,
+      "kind" : "cc",
+      "maximum" : 127,
+      "minimum" : 0,
+      "name" : "record6",
+      "number" : 69
+    },
+    {
+      "behavior" : "momentary",
+      "channel" : 1,
+      "kind" : "cc",
+      "maximum" : 127,
+      "minimum" : 0,
+      "name" : "record7",
+      "number" : 70
+    },
+    {
+      "behavior" : "momentary",
+      "channel" : 1,
+      "kind" : "cc",
+      "maximum" : 127,
+      "minimum" : 0,
+      "name" : "record8",
+      "number" : 71
+    },
+    {
+      "behavior" : "momentary",
+      "channel" : 1,
+      "kind" : "cc",
+      "maximum" : 127,
+      "minimum" : 0,
+      "name" : "rewind",
+      "number" : 43
+    },
+    {
+      "behavior" : "momentary",
+      "channel" : 1,
+      "kind" : "cc",
+      "maximum" : 127,
+      "minimum" : 0,
+      "name" : "forward",
+      "number" : 44
+    },
+    {
+      "behavior" : "momentary",
+      "channel" : 1,
+      "kind" : "cc",
+      "maximum" : 127,
+      "minimum" : 0,
+      "name" : "stop",
+      "number" : 42
+    },
+    {
+      "behavior" : "momentary",
+      "channel" : 1,
+      "kind" : "cc",
+      "maximum" : 127,
+      "minimum" : 0,
+      "name" : "play",
+      "number" : 41
+    },
+    {
+      "behavior" : "momentary",
+      "channel" : 1,
+      "kind" : "cc",
+      "maximum" : 127,
+      "minimum" : 0,
+      "name" : "recordTransport",
+      "number" : 45
+    },
+    {
+      "behavior" : "momentary",
+      "channel" : 1,
+      "kind" : "cc",
+      "maximum" : 127,
+      "minimum" : 0,
+      "name" : "cycle",
+      "number" : 46
+    },
+    {
+      "behavior" : "momentary",
+      "channel" : 1,
+      "kind" : "cc",
+      "maximum" : 127,
+      "minimum" : 0,
+      "name" : "trackPrevious",
+      "number" : 58
+    },
+    {
+      "behavior" : "momentary",
+      "channel" : 1,
+      "kind" : "cc",
+      "maximum" : 127,
+      "minimum" : 0,
+      "name" : "trackNext",
+      "number" : 59
+    },
+    {
+      "behavior" : "momentary",
+      "channel" : 1,
+      "kind" : "cc",
+      "maximum" : 127,
+      "minimum" : 0,
+      "name" : "markerSet",
+      "number" : 60
+    },
+    {
+      "behavior" : "momentary",
+      "channel" : 1,
+      "kind" : "cc",
+      "maximum" : 127,
+      "minimum" : 0,
+      "name" : "markerPrevious",
+      "number" : 61
+    },
+    {
+      "behavior" : "momentary",
+      "channel" : 1,
+      "kind" : "cc",
+      "maximum" : 127,
+      "minimum" : 0,
+      "name" : "markerNext",
+      "number" : 62
+    }
+  ]
+}
