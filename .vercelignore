@@ -1,0 +1,10 @@
+.env
+.env.*
+.certs
+artifacts
+_temp
+native
+server
+scripts
+tests
+.github

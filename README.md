@@ -20,13 +20,15 @@ The show starts cleared. **Play** resumes motion, **Clear** removes all visuals/
 
 Start the server without `--synthetic`. Follow [the native Host Agent guide](docs/native-host.md) for build, existing capture-permission checks, CoreMIDI device selection, and the authenticated loopback bridge. The bridge URL is `http://127.0.0.1:8788`; the native process uses the same `NATIVE_TOKEN` as the server. Do not mistake an enumerated controller or silent capture for a verified live musical performance.
 
-## Connect headsets later
+## Connect headsets
+
+For Wi-Fi access, use the [fixed Vercel frontend and Mac HTTPS/WSS setup](docs/deployment.md). The Mac still controls the show; the hosted page provides trusted HTTPS delivery and an explicit show-server selector.
 
 Follow the [Quest preview guide](docs/hmd-preview.md) to browse all 15 scenes in MR. For a first USB preview, ADB reverse maps the headset's `http://localhost:8787/?view=hmd` to the Mac. Wireless headset access requires trusted HTTPS/WSS following [server and TLS setup](docs/server.md). The default server only listens on loopback; a copied loopback URL requires the USB mapping to reach this Mac. **Enter MR** must be initiated in a supported browser, then follow the floor A/B alignment prompts. The Mac's **Preview scene** dropdown and **Previous / Next** buttons switch content while the headset stays in MR.
 
 The renderer follows the supplied VoXelo `forceWebGL` / TSL transparent Bloom path. See [rendering and calibration](docs/rendering.md) for quality controls and limitations.
 
-**Hardware testing is currently deferred at the user's request. Do not use the connected Quest 3S; it is assigned to another project.** Desktop results do not prove stereo MR/Bloom, shared physical alignment, or two-HMD synchronization. The ten added presets have separate hardware acceptance requirements; the earlier five-scene validation remains historical evidence for those original scenes only.
+The user reported successful HMD viewing on 2026-09-09. Measured stereo MR/Bloom, shared physical alignment, sustained performance, and two-HMD synchronization remain separate acceptance checks. **Agent-operated testing of the connected Quest 3S remains deferred until it is explicitly available for this project.** See the [validation record](docs/validation.md) for the distinction between user-reported display confirmation and measured results.
 
 ## Validation and delivery
 

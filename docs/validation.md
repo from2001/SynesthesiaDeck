@@ -1,13 +1,13 @@
 # Validation status — 2026-09-09
 
-The software is integrated and usable for a desktop demonstration. Physical HMD validation is **deferred at the user's explicit request**: the connected Quest 3S belongs to another active project and must not be operated. No headset application, browser session, tracking setting, or device test was launched for this implementation.
+The software is integrated and usable for a desktop demonstration. On 2026-09-09, the user reported successfully viewing the content on an HMD. This is user-reported display confirmation; device/browser versions, the exact connection route, per-scene coverage, both-eye composition, and timing measurements were not recorded. The agent has not operated the connected Quest 3S, changed its settings, or launched a device test. The earlier restriction on agent-operated testing remains in place until the device is explicitly made available.
 
 ## Completed checks
 
 | Check | Evidence/result |
 | --- | --- |
 | TypeScript protocol, server, client, and renderer | Typecheck and production build pass |
-| Automated TypeScript tests | 72 tests across protocol, server HTTP/WS, MIDI mapping, browser connection recovery, clock/interpolation, all 15 presets, visual math/effects, and calibration |
+| Automated TypeScript tests | 113 tests across protocol, server HTTP/WS, MIDI mapping, browser connection recovery, endpoint selection and credential isolation, tunnel supervision, clock/interpolation, all 15 presets, visual math/effects, and calibration |
 | Swift package | Debug/release builds and 13 DSP/MIDI/clock tests pass |
 | Dependency audit | Zero reported vulnerabilities at verification time |
 | Actual native-to-server integration | `npm run verify:system` uses the real Swift executable, authenticated HTTP ingress and two certificate-validated WSS consumers |
@@ -35,7 +35,17 @@ Automated tests cover the expanded schema bounds, fixed S1–S8 shortcuts, full-
 
 Local evidence is under ignored `artifacts/scene-expansion/`: `final-01.png` through `final-15.png`, `quality-8-{low,high,medium}.png`, `quality-12-{low,high,medium}.png`, `cleared.png`, `desktop-catalog.png`, and `system-verification.json`. Vite reports a non-fatal bundle-size warning at 969.29 kB minified / 268.38 kB gzip; no additional asset or CDN requests are required.
 
-The [Quest preview guide](hmd-preview.md) documents USB port forwarding, wireless trusted HTTPS/WSS, MR entry, A/B alignment, and scene control from the Mac. Its device commands have not been executed. Stereo composition, passthrough Bloom, physical scale/alignment, two-headset presentation timing, and sustained hardware performance remain pending for all ten additions.
+The [Quest preview guide](hmd-preview.md) documents USB port forwarding, wireless trusted HTTPS/WSS, MR entry, A/B alignment, and scene control from the Mac. The agent has not executed its device commands. The user has since reported successful HMD viewing, while measured stereo composition, passthrough Bloom, physical scale/alignment, two-headset presentation timing, and sustained hardware performance remain pending for the expanded catalog.
+
+## Vercel frontend and Mac HTTPS/WSS preview
+
+The fixed production frontend is [nanokon-sync-mixed-reality.vercel.app](https://nanokon-sync-mixed-reality.vercel.app). Vercel builds the static Vite application with Node 22 in hosted mode. The existing Mac authority remains responsible for time, state, audio features and MIDI; its native ingress stays on `127.0.0.1:8788`. Only the main authority port is forwarded. The [deployment guide](deployment.md) documents startup, endpoint selection and operator/HMD links.
+
+The public ngrok `/health` endpoint and local `/health` returned the same authority epoch with normal TLS verification. A real desktop browser loaded the deployed Vercel page, authenticated the desk, and synchronized Liquid Mercury, Impossible Loom and a DROP into Tidal Silk to a separate deployed audience page through WSS. No browser error-level logs were observed during the successful control flow. These checks use the synthetic feature source; they do not capture music, exercise physical MIDI or measure HMD timing.
+
+The combined runner was then verified using the existing ngrok authentication configuration: public readiness succeeded, only loopback ports 8787/8788 listened, and the ngrok inspection API was disabled. SIGTERM removed readiness and closed both listeners and the owned tunnel; the browser reported Reconnecting. Restarting restored the same ngrok address with a new authority epoch and cleared transport. Runner status and shutdown evidence are under ignored `artifacts/https-preview*.json`; `artifacts/https-preview.log` contains sanitized startup messages.
+
+The current Wi-Fi resolver could not resolve an allocated Cloudflare Quick Tunnel hostname, so its public readiness check failed. The runner closed its owned resources and ngrok was selected explicitly. No DNS, router, firewall or trust-store settings were changed. No agent-operated HMD test was performed for this deployment.
 
 ## Software delivered and remaining acceptance
 

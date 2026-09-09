@@ -1,11 +1,14 @@
 import './style.css';
-import { CONTROL_KEYS, EFFECT_NAMES, SCENES, SCENE_COUNT, type Command } from '../shared/protocol';
+import { CONTROL_KEYS, EFFECT_NAMES, SCENES, SCENE_COUNT, initialState, SILENCE, type Command } from '../shared/protocol';
 import { MIDI_SCENE_SHORTCUT_COUNT, SCENE_CATALOG, SCENE_GROUPS, sceneNumber } from '../shared/scenes';
 import { ShowConnection } from './connection';
 import { ShowRenderer } from './visuals/renderer';
 import { PRESET_PARAMETERS } from './visuals/parameters';
+import { initialShowSelection, persistControlToken, prepareShowSelection, publicShowOrigin, readSetting, showPageLink, type SettingsStore } from './show-settings';
 
-const hmdMode = new URLSearchParams(location.search).get('view') === 'hmd';
+const pageParameters = new URLSearchParams(location.search);
+const hmdMode = pageParameters.get('view') === 'hmd' || (!pageParameters.has('view') && location.pathname === '/hmd');
+const hosted = import.meta.env.VITE_SHOW_MODE === 'hosted';
 if (hmdMode) document.body.classList.add('hmd-mode');
 const app = document.querySelector<HTMLDivElement>('#app')!;
 app.innerHTML = `
@@ -13,6 +16,7 @@ app.innerHTML = `
   <main class="workspace">
     <div class="intro"><div><h1>Your room. A shared frequency.</h1><p>Shape the sound. Move the space.</p></div><div class="transport"><button class="play command" id="play">▶ Play</button><button class="command" id="stop">■ Clear</button><button class="command danger" id="reset">Reset</button></div></div>
     <div id="notice" class="notice" role="status" aria-live="polite"></div>
+    <details id="server-setup" class="server-setup"><summary>Show connection <span id="server-label">Choose your Mac</span></summary><form id="server-form"><label for="server-url">Mac show URL</label><div class="server-fields"><input id="server-url" type="url" autocomplete="off" spellcheck="false" placeholder="https://your-show-address" aria-describedby="server-help"><button type="submit">Connect show</button></div><p id="server-help">Paste the HTTPS show address printed on your Mac. Keep the Mac and its tunnel running.</p></form></details>
     <div class="layout"><div class="main-column">
       <section class="panel">
         <form id="login" class="login"><input id="token" type="password" autocomplete="off" placeholder="Control token" aria-label="Control token"><button type="submit">Connect desk</button><p id="access-status">Audience preview · enter your control token to perform.</p></form>
@@ -37,28 +41,80 @@ function notice(message: string) { $('notice').textContent = message; }
 let connection: ShowConnection;
 let renderer: ShowRenderer | null = null;
 let renderReady = false;
-let savedToken = sessionStorage.getItem('nanokon-control-token') ?? '';
-$<HTMLInputElement>('token').value = savedToken;
+let serverUrl = '';
+let savedToken = '';
 let lastUi = 0, lastTelemetry = 0, clientSignature = '';
 const editedAt = new Map<string, number>();
 const delayed = new Map<string, number>();
 const knobLabels = PRESET_PARAMETERS;
+let settingsStore: SettingsStore | null = null;
+try { settingsStore = window.sessionStorage; } catch { /* Browser storage is optional for a live connection. */ }
+const audienceName = readSetting(settingsStore, 'nanokon-name') ?? crypto.randomUUID().slice(0, 4);
 
+function publicServerOrigin(): string { return publicShowOrigin(serverUrl); }
+function pageLink(audience: boolean): URL { return showPageLink(location.origin, serverUrl, audience, hosted); }
+function updateConnectionLinks() {
+  $<HTMLInputElement>('join-url').value = serverUrl ? pageLink(true).href : '';
+  $<HTMLButtonElement>('copy-join').disabled = !serverUrl;
+  $('copy-join').textContent = 'Copy audience link';
+  document.querySelector<HTMLAnchorElement>('.brand')!.href = pageLink(false).href;
+  document.querySelector<HTMLAnchorElement>('.header-right a')!.href = pageLink(!hmdMode).href;
+  $('server-label').textContent = serverUrl ? new URL(serverUrl).host : 'Choose your Mac';
+  $<HTMLInputElement>('server-url').value = serverUrl ? publicServerOrigin() : '';
+}
 function startConnection(token: string) {
-  connection?.disconnect(); clientSignature = '';
-  connection = new ShowConnection(!hmdMode && token ? 'dashboard' : 'hmd', token, hmdMode ? `Audience ${sessionStorage.getItem('nanokon-name') ?? crypto.randomUUID().slice(0, 4)}` : 'Desktop preview');
-  connection.addEventListener('notice', (event) => notice((event as CustomEvent<string>).detail));
-  connection.connect();
+  const previous = connection;
+  const selected = new ShowConnection(!hmdMode && token ? 'dashboard' : 'hmd', hmdMode ? '' : token, hmdMode ? `Audience ${audienceName}` : 'VJ desk', serverUrl || undefined);
+  connection = selected;
+  previous?.disconnect(); clientSignature = '';
+  for (const timer of delayed.values()) clearTimeout(timer);
+  delayed.clear(); editedAt.clear(); lastTelemetry = 0;
+  renderer?.update(initialState('awaiting-show'), SILENCE, 0);
+  document.querySelectorAll<HTMLButtonElement | HTMLInputElement | HTMLSelectElement>('.command').forEach(element => { element.disabled = true; });
+  $('preview-clock').textContent = 'WAITING FOR SHOW'; $('clock-info').textContent = 'CLOCK ACQUIRING';
+  $('scene-caption').textContent = 'WAITING FOR SHOW'; $('scene-description').textContent = 'The selected show will appear after connecting.';
+  $('bpm').textContent = '—'; $('beat-lamp').style.opacity = '.1';
+  for (const key of ['level', 'bass', 'lowMid', 'mid', 'high']) {
+    $('meter-' + key).style.width = '0%'; $('audio-' + key).textContent = '0';
+  }
+  selected.addEventListener('notice', event => { if (connection === selected) notice((event as CustomEvent<string>).detail); });
+  if (serverUrl) selected.connect();
+  else selected.status = 'Choose a show server';
   $('access-status').textContent = token ? 'Authenticating the VJ desk…' : 'Audience preview · enter your control token to perform.';
 }
+try {
+  const selected = initialShowSelection({ pageOrigin: location.origin, hosted, audience: hmdMode, queryServer: pageParameters.get('server'), configuredServer: import.meta.env.VITE_SHOW_SERVER_URL }, settingsStore);
+  serverUrl = selected.serverUrl; savedToken = selected.token;
+} catch (error) { notice(`Show address rejected: ${error instanceof Error ? error.message : String(error)}`); }
+$<HTMLInputElement>('token').value = hmdMode ? '' : savedToken;
+$<HTMLDetailsElement>('server-setup').open = !serverUrl;
 startConnection(savedToken);
+$('server-form').addEventListener('submit', event => {
+  event.preventDefault();
+  try {
+    const requested = $<HTMLInputElement>('server-url').value.trim();
+    if (!requested && hosted) throw new Error('Enter the HTTPS show address printed on your Mac.');
+    const selected = prepareShowSelection(requested, location.origin, hmdMode, settingsStore);
+    const link = showPageLink(location.origin, selected.serverUrl, hmdMode, hosted);
+    // Publish the complete endpoint/credential pair only after validation and storage handling finish.
+    serverUrl = selected.serverUrl; savedToken = selected.token;
+    $<HTMLInputElement>('token').value = hmdMode ? '' : savedToken;
+    try { history.replaceState(null, '', link); } catch { /* Navigation links still carry the selected endpoint when history updates are restricted. */ }
+    updateConnectionLinks(); startConnection(savedToken);
+    $<HTMLDetailsElement>('server-setup').open = false;
+    notice(selected.persisted ? 'Connecting to the selected show. Use Play on the authenticated desk to start the visuals.' : 'Connecting to the selected show without saved credentials. Enter its control token to use the desk.');
+  } catch (error) { notice(error instanceof Error ? error.message : String(error)); }
+});
 $<HTMLFormElement>('login').addEventListener('submit', event => {
-  event.preventDefault(); savedToken = $<HTMLInputElement>('token').value.trim();
-  sessionStorage.setItem('nanokon-control-token', savedToken); startConnection(savedToken);
+  event.preventDefault();
+  if (!serverUrl) { $<HTMLDetailsElement>('server-setup').open = true; notice('Connect to your Mac show before entering a control token.'); return; }
+  savedToken = $<HTMLInputElement>('token').value.trim();
+  persistControlToken(serverUrl, savedToken, settingsStore); startConnection(savedToken);
 });
 async function send(command: Command) {
-  try { await connection.command(command); }
-  catch (error) { notice(error instanceof Error ? error.message : String(error)); }
+  const selected = connection;
+  try { await selected.command(command); }
+  catch (error) { if (connection === selected) notice(error instanceof Error ? error.message : String(error)); }
 }
 function schedule(key: string, command: Command) {
   editedAt.set(key, performance.now());
@@ -97,7 +153,7 @@ document.querySelectorAll<HTMLButtonElement>('[data-toggle]').forEach(button => 
   const value = projected?.type === 'toggle' ? projected.value : (connection.timeline.state?.toggles[slot] ?? false);
   void send({ type: 'toggle', slot, value: !value });
 }));
-$<HTMLInputElement>('join-url').value = new URL('?view=hmd', location.origin).href;
+updateConnectionLinks();
 $('copy-join').addEventListener('click', async () => {
   try { await navigator.clipboard.writeText($<HTMLInputElement>('join-url').value); $('copy-join').textContent = 'Link copied'; }
   catch { $<HTMLInputElement>('join-url').select(); notice('Copy the selected audience address.'); }

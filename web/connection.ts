@@ -1,7 +1,9 @@
 import { ServerMessageSchema, VERSION, type ClientInfo, type Command, type ServerMessage, type SourceStatus, type Telemetry } from '../shared/protocol';
 import { ShowClock, StateTimeline } from './sync';
+import { resolveServerUrl } from './server-url';
 
 export class ShowConnection extends EventTarget {
+  readonly serverUrl: string;
   readonly clock = new ShowClock();
   readonly timeline = new StateTimeline();
   source: SourceStatus = { capture: 'stopped', midi: 'disconnected', detail: 'Waiting for the show server' };
@@ -19,14 +21,17 @@ export class ShowConnection extends EventTarget {
   private pings = new Map<number, number>();
   private requests = new Map<string, { resolve: (eventId: string) => void; reject: (error: Error) => void; timeout: number }>();
   private lastReceive = 0;
-  constructor(readonly role: 'hmd' | 'dashboard', readonly token = '', readonly name = role === 'hmd' ? 'Headset' : 'VJ desk') { super(); }
+  constructor(readonly role: 'hmd' | 'dashboard', readonly token = '', readonly name = role === 'hmd' ? 'Headset' : 'VJ desk', socketUrl?: string) {
+    super();
+    this.serverUrl = resolveServerUrl(socketUrl, location.origin);
+  }
   private changed() { this.dispatchEvent(new Event('change')); }
   private message(text: string) { this.dispatchEvent(new CustomEvent('notice', { detail: text })); }
   connect() {
     this.stopped = false;
     clearTimeout(this.reconnectTimer);
     this.status = this.attempt ? 'Reconnecting' : 'Connecting'; this.changed();
-    const socket = new WebSocket(`${location.protocol === 'https:' ? 'wss:' : 'ws:'}//${location.host}/ws`);
+    const socket = new WebSocket(this.serverUrl);
     this.socket = socket;
     socket.addEventListener('open', () => {
       this.lastReceive = performance.now();
