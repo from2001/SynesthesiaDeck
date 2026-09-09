@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { Authority } from '../server/authority.js';
-import { initialState, SILENCE, type NativeMessage } from '../shared/protocol.js';
+import { initialState, SCENE_COUNT, SILENCE, type NativeMessage } from '../shared/protocol.js';
 import { MidiMapper, MidiProfileSchema, NANO_KONTROL_2 } from '../server/midi.js';
 
 function setup() {
@@ -132,7 +132,7 @@ describe('show authority', () => {
 });
 const midiMessage = (data1: number, data2: number, status = 0xb0): Extract<NativeMessage, { type: 'midi' }> => ({ version: 1, type: 'midi', timestamp: 0, status, data1, data2 });
 describe('MIDI mapping', () => {
-  it('uses press edges, releases, debounce and reserved scene slots', () => {
+  it('uses press edges, releases, debounce and fixed eight scene shortcuts', () => {
     const mapper = new MidiMapper();
     const state = initialState('test');
     expect(mapper.consume(midiMessage(34, 127), state, 0)).toEqual({ type: 'scene', scene: 2 });
@@ -141,12 +141,21 @@ describe('MIDI mapping', () => {
     expect(mapper.consume(midiMessage(34, 127), state, 12)).toBeNull();
     mapper.consume(midiMessage(34, 0), state, 50);
     expect(mapper.consume(midiMessage(34, 127), state, 60)).toEqual({ type: 'scene', scene: 2 });
-    for (const reserved of [37, 38, 39]) expect(mapper.consume(midiMessage(reserved, 127), state, 100)).toBeNull();
-    expect(mapper.consume(midiMessage(43, 127), state, 100)).toEqual({ type: 'scene', scene: 4 });
-    expect(mapper.consume(midiMessage(44, 127), { ...state, scene: 4 }, 100)).toEqual({ type: 'scene', scene: 0 });
+    for (const cc of [37, 38, 39]) expect(mapper.consume(midiMessage(cc, 127), state, 100)).toEqual({ type: 'scene', scene: cc - 32 });
+    expect(mapper.consume(midiMessage(43, 127), state, 100)).toEqual({ type: 'scene', scene: SCENE_COUNT - 1 });
+    expect(mapper.consume(midiMessage(44, 127), { ...state, scene: SCENE_COUNT - 1 }, 100)).toEqual({ type: 'scene', scene: 0 });
     expect(mapper.consume(midiMessage(41, 127), state, 100)).toEqual({ type: 'start' });
     expect(mapper.consume(midiMessage(42, 127), state, 100)).toEqual({ type: 'clear' });
     expect(mapper.consume(midiMessage(45, 127), state, 100)?.type).toBe('drop');
+  });
+  it('routes every preset through REW/FF and preserves fixed S1–S8 on later scenes', () => {
+    for (let scene = 0; scene < SCENE_COUNT; scene++) {
+      const state = { ...initialState('test'), scene };
+      const mapper = new MidiMapper();
+      expect(mapper.consume(midiMessage(43, 127), state, 100)).toEqual({ type: 'scene', scene: (scene + SCENE_COUNT - 1) % SCENE_COUNT });
+      expect(mapper.consume(midiMessage(44, 127), state, 100)).toEqual({ type: 'scene', scene: (scene + 1) % SCENE_COUNT });
+      for (let slot = 0; slot < 8; slot++) expect(mapper.consume(midiMessage(32 + slot, 127), state, 100)).toEqual({ type: 'scene', scene: slot });
+    }
   });
   it('toggles authoritative values and handles all one-shot slots', () => {
     const mapper = new MidiMapper();

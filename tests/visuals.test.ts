@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { applyEvent, initialState, SILENCE, syntheticAudio, type ShowState } from '../shared/protocol';
+import { applyEvent, initialState, SCENES, SILENCE, syntheticAudio, type ShowState } from '../shared/protocol';
 import { evaluateEffects, floorIntersection, particleIdentity, sampleParticle, solveCalibration, transformCalibrated, visualFrame } from '../web/visuals/math';
 import { PRESET_PARAMETERS, QUALITY_BUDGETS, visibleCount } from '../web/visuals/parameters';
 
@@ -56,7 +56,8 @@ describe('deterministic procedural scenes', () => {
   });
 
   it('exposes eight scene-specific parameters and caps tier counts', () => {
-    expect(PRESET_PARAMETERS).toHaveLength(5);
+    expect(SCENES).toHaveLength(15);
+    expect(PRESET_PARAMETERS).toHaveLength(SCENES.length);
     for (const labels of PRESET_PARAMETERS) expect(new Set(labels).size).toBe(8);
     const state = playing();
     state.controls.density = 1;

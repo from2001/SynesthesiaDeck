@@ -1,5 +1,8 @@
 import { describe, expect, it } from 'vitest';
-import { applyEvent, AudioSchema, CommandSchema, initialState, motionAt, NativeMessageSchema, seeded, ShowStateSchema, syntheticAudio, type Command, type ShowEvent } from '../shared/protocol';
+import { applyEvent, AudioSchema, CommandSchema, initialState, motionAt, NativeMessageSchema, SCENES, SCENE_COUNT, seeded, ShowStateSchema, TelemetrySchema, syntheticAudio, type Command, type ShowEvent } from '../shared/protocol';
+
+import { MIDI_SCENE_SHORTCUT_COUNT, SCENE_CATALOG, SCENE_GROUPS, sceneNumber } from '../shared/scenes';
+import { PRESET_PARAMETERS } from '../web/visuals/parameters';
 
 function event(sequence: number, effectiveAt: number, command: Command): ShowEvent {
   return { id: `e${sequence}`, epoch: 'test', sequence, effectiveAt, seed: 42, command };
@@ -12,9 +15,42 @@ describe('shared contract', () => {
   });
   it('rejects invalid bounds, schema versions and unknown commands', () => {
     for (const value of [-1, 2, NaN, Infinity]) expect(CommandSchema.safeParse({ type: 'control', key: 'glow', value }).success).toBe(false);
-    expect(CommandSchema.safeParse({ type: 'scene', scene: 7 }).success).toBe(false);
+    expect(CommandSchema.safeParse({ type: 'scene', scene: SCENE_COUNT }).success).toBe(false);
     expect(CommandSchema.safeParse({ type: 'start', unexpected: true }).success).toBe(false);
     expect(NativeMessageSchema.safeParse({ version: 2, type: 'audio', timestamp: 0, source: 'system', audio: syntheticAudio(0) }).success).toBe(false);
+  });
+  it('preserves original IDs and validates all fifteen scene and DROP destinations', () => {
+    expect(SCENE_COUNT).toBe(15);
+    expect(SCENES.slice(0, 5)).toEqual(['CODE CATHEDRAL', 'VECTOR FIELD', 'NEON DATA CITY', 'GLITCH STORM', 'SINGULARITY']);
+    expect(SCENES[14]).toBe('PRISMATIC PORTAL');
+    for (let scene = 0; scene < SCENE_COUNT; scene++) {
+      const command = CommandSchema.parse({ type: 'scene', scene });
+      const state = applyEvent(initialState('test'), event(scene + 1, 100, command));
+      expect(ShowStateSchema.parse(state).scene).toBe(scene);
+      expect(CommandSchema.parse({ type: 'drop', targetScene: scene }).type).toBe('drop');
+      expect(TelemetrySchema.parse({ rtt: 1, offset: 0, locked: true, fps: 60, scene, calibrated: false, xr: false, quality: 'low' }).scene).toBe(scene);
+    }
+    for (const scene of [-1, 15, 1.5]) {
+      expect(CommandSchema.safeParse({ type: 'scene', scene }).success).toBe(false);
+      expect(CommandSchema.safeParse({ type: 'drop', targetScene: scene }).success).toBe(false);
+      expect(ShowStateSchema.safeParse({ ...initialState('test'), scene }).success).toBe(false);
+    }
+  });
+  it('provides complete scene descriptions, groups, parameter labels and physical shortcuts', () => {
+    expect(SCENE_CATALOG).toHaveLength(SCENE_COUNT);
+    expect(PRESET_PARAMETERS).toHaveLength(SCENE_COUNT);
+    expect(new Set(SCENES).size).toBe(SCENE_COUNT);
+    expect(MIDI_SCENE_SHORTCUT_COUNT).toBe(8);
+    for (const group of SCENE_GROUPS) expect(SCENE_CATALOG.filter(scene => scene.group === group.id)).toHaveLength(5);
+    for (let i = 0; i < SCENE_COUNT; i++) {
+      expect(SCENE_CATALOG[i].synopsis.length).toBeGreaterThan(20);
+      expect(PRESET_PARAMETERS[i]).toHaveLength(8);
+      expect(PRESET_PARAMETERS[i][5]).toBe('Palette hue');
+      expect(PRESET_PARAMETERS[i].every(label => label.length > 3)).toBe(true);
+      expect(sceneNumber(i)).toBe(String(i + 1).padStart(2, '0'));
+    }
+    expect(sceneNumber(9)).toBe('10');
+    expect(sceneNumber(14)).toBe('15');
   });
   it('integrates speed on the authority timeline independently of render steps', () => {
     let state = applyEvent(initialState('test'), event(1, 1000, { type: 'start' }));

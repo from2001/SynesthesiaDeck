@@ -14,6 +14,8 @@ For production, run `npm run build` and `npm start`. Production serves only `dis
 
 ## Secure venue delivery
 
+For a first preview with an available USB-connected Quest, the [headset preview guide](hmd-preview.md) documents ADB reverse and a trustworthy loopback URL. The following paths cover wireless and venue access.
+
 Choose one delivery path and test it before the venue session:
 
 1. **Trusted DNS certificate.** Use a DNS name with a certificate trusted by the actual headset browser. Route it to this Mac on the venue network. Set `HOST=0.0.0.0`, `PUBLIC_ORIGIN=https://your-hostname:8787`, `TLS_CERT`, and `TLS_KEY`. The certificate must contain the accessed hostname or IP in its SAN. The server refuses a missing key/certificate pair and never falls back to HTTP for a LAN bind.
@@ -61,13 +63,14 @@ The native bridge emits canonical channel 1 CC messages after its optional hardw
 | --- | --- | --- |
 | Faders 1–8 | 0–7 | intensity, density, speed, scale, distortion, glow, glitch, masterFX |
 | Knobs 1–8 | 16–23 | Current scene's parameter slots 1–8; scene UI supplies labels |
-| S1–S5 | 32–36 | CODE CATHEDRAL, VECTOR FIELD, NEON DATA CITY, GLITCH STORM, SINGULARITY |
-| S6–S8 | 37–39 | Reserved; no action |
+| S1–S8 | 32–39 | Fixed presets 01–08: CODE CATHEDRAL through ABYSSAL BLOOM |
 | M1–M8 | 48–55 | One-shot Orbit, Pulse, Twist, Mirror, Scatter, Strobe, Prism, Freeze slots |
 | R1–R8 | 64–71 | Persistent toggle for the same effect slots |
-| REW / FF | 43 / 44 | Previous / next of five scenes, wrapping from the projected pending scene |
+| REW / FF | 43 / 44 | Previous / next of all 15 scenes, wrapping from the projected pending scene |
 | STOP / PLAY | 42 / 41 | Visual clear and pause / start or resume |
 | Transport REC | 45 | Scheduled DROP, default 1800 ms / strength 0.7 |
+
+The eight S buttons always select the first eight presets, regardless of the current scene. There is no hidden bank-switch mode. Presets 09–15 are selected from the dashboard or by REW/FF; REW wraps 01 → 15 and FF wraps 15 → 01. The dashboard shows actual S1–S8 labels only and explains this fixed mapping. See the [complete scene catalog](scene-catalog.md) for names and knob labels.
 
 Buttons trigger only on the rising edge (positive CC or note-on velocity), and releases never retrigger. Repeated presses inside 35 ms are suppressed. Native profiles for hardware toggle-mode buttons emit one canonical press/release pulse for each physical press. R toggles use projected authoritative state, so rapid separate presses and dashboard changes agree. There is no outbound MIDI feedback, preventing echo loops.
 

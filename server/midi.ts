@@ -1,5 +1,5 @@
 import { z } from 'zod';
-import { CONTROL_KEYS, type Command, type NativeMessage, type ShowState } from '../shared/protocol.js';
+import { CONTROL_KEYS, SCENE_COUNT, type Command, type NativeMessage, type ShowState } from '../shared/protocol.js';
 
 const cc = z.number().int().min(0).max(127);
 const bank = z.array(cc).length(8);
@@ -75,13 +75,13 @@ export class MidiMapper {
     if (!rising || now - button.lastPress < p.debounceMs) return null;
     button.lastPress = now;
     let slot = p.scenes.indexOf(message.data1);
-    if (slot >= 0) return slot < 5 ? { type: 'scene', scene: slot } : null;
+    if (slot >= 0) return slot < SCENE_COUNT ? { type: 'scene', scene: slot } : null;
     slot = p.bursts.indexOf(message.data1);
     if (slot >= 0) return { type: 'burst', slot };
     slot = p.toggles.indexOf(message.data1);
     if (slot >= 0) return { type: 'toggle', slot, value: !projected.toggles[slot] };
-    if (message.data1 === p.transport.previous) return { type: 'scene', scene: (projected.scene + 4) % 5 };
-    if (message.data1 === p.transport.next) return { type: 'scene', scene: (projected.scene + 1) % 5 };
+    if (message.data1 === p.transport.previous) return { type: 'scene', scene: (projected.scene + SCENE_COUNT - 1) % SCENE_COUNT };
+    if (message.data1 === p.transport.next) return { type: 'scene', scene: (projected.scene + 1) % SCENE_COUNT };
     if (message.data1 === p.transport.clear) return { type: 'clear' };
     if (message.data1 === p.transport.start) return { type: 'start' };
     if (message.data1 === p.transport.drop) return { type: 'drop', duration: 1800, strength: .7 };

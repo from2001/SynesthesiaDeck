@@ -6,6 +6,8 @@ import { initialState, SILENCE, type AudioFeatures, type ShowState } from '../..
 import { floorIntersection, particleIdentity, sampleParticle, solveCalibration, visualFrame,
   type Calibration, type ParticleIdentity, type Point3, type VisualFrame, type VisualSample } from './math';
 import { QUALITY_BUDGETS, visibleCount, type Quality } from './parameters';
+import { OrganicPresets } from './organic-presets';
+import { ArchitecturalPresets } from './architectural-presets';
 
 const MAX_PARTICLES = QUALITY_BUDGETS.high.particles;
 const MAX_INSTANCES = QUALITY_BUDGETS.high.instances;
@@ -28,6 +30,8 @@ export class ShowRenderer {
   private orbit!: OrbitControls;
   private root = new THREE.Group();
   private content = new THREE.Group();
+  private organic!: OrganicPresets;
+  private architectural!: ArchitecturalPresets;
   private resizeObserver!: ResizeObserver;
   private quality: Quality = 'medium';
   private initialized = false;
@@ -325,6 +329,9 @@ export class ShowRenderer {
     this.burst = new THREE.Sprite(this.burstMaterial);
     this.burst.count = 1500; this.burst.frustumCulled = false;
     this.content.add(this.burst);
+    this.organic = new OrganicPresets();
+    this.architectural = new ArchitecturalPresets();
+    this.content.add(this.organic.group, this.architectural.group);
     this.content.visible = false;
   }
 
@@ -389,7 +396,7 @@ export class ShowRenderer {
     const { state, audio, effects, phase } = frame;
     this.content.visible = state.running;
     if (!state.running) return;
-    this.rebuildIdentity(state);
+    if (state.scene < 5) this.rebuildIdentity(state);
     const budget = QUALITY_BUDGETS[this.quality], scene = state.scene, p = state.sceneParams;
     const counts = visibleCount(budget.particles, state);
     const instances = visibleCount(budget.instances, state);
@@ -401,92 +408,102 @@ export class ShowRenderer {
     const scale = (.55 + state.controls.scale * .9) * (1 + pulse + audio.bass * (scene === 0 ? .055 : .015));
     this.content.scale.setScalar(scale * effects.contraction);
     this.content.rotation.y = (state.toggles[0] ? phase * .15 * fx : 0) + effects.oneShots[0] * Math.PI * .5;
-    const hue = p[5] + (state.toggles[6] ? phase * .06 * fx : 0) + effects.oneShots[6] * .3;
-    if (Math.abs(hue - this.currentHue) > .004 || this.currentHue < 0) {
-      this.currentHue = hue;
-      const baseHue = [.42, .51, .55, .86, .67][scene];
-      for (let index = 0; index < MAX_PARTICLES; index++) {
-        this.color.setHSL(((baseHue + (hue - .5) * .6 + this.identities[index].a * .16) % 1 + 1) % 1, .8, .56);
-        this.colors.setXYZ(index, this.color.r, this.color.g, this.color.b);
-        if (index < MAX_INSTANCES) { this.glyphs.setColorAt(index, this.color); this.towers.setColorAt(index, this.color); this.shards.setColorAt(index, this.color); }
+    // Experimental scenes own their geometry, while all fifteen share show transforms and Bloom.
+    this.organic.update(frame, this.quality, gain);
+    this.architectural.update(frame, this.quality, gain);
+    if (scene < 5) {
+      this.particles.visible = true;
+      const hue = p[5] + (state.toggles[6] ? phase * .06 * fx : 0) + effects.oneShots[6] * .3;
+      if (Math.abs(hue - this.currentHue) > .004 || this.currentHue < 0) {
+        this.currentHue = hue;
+        const baseHue = [.42, .51, .55, .86, .67][scene];
+        for (let index = 0; index < MAX_PARTICLES; index++) {
+          this.color.setHSL(((baseHue + (hue - .5) * .6 + this.identities[index].a * .16) % 1 + 1) % 1, .8, .56);
+          this.colors.setXYZ(index, this.color.r, this.color.g, this.color.b);
+          if (index < MAX_INSTANCES) { this.glyphs.setColorAt(index, this.color); this.towers.setColorAt(index, this.color); this.shards.setColorAt(index, this.color); }
+        }
+        this.colors.needsUpdate = true;
+        if (this.glyphs.instanceColor) this.glyphs.instanceColor.needsUpdate = true;
+        if (this.towers.instanceColor) this.towers.instanceColor.needsUpdate = true;
+        if (this.shards.instanceColor) this.shards.instanceColor.needsUpdate = true;
       }
-      this.colors.needsUpdate = true;
-      if (this.glyphs.instanceColor) this.glyphs.instanceColor.needsUpdate = true;
-      if (this.towers.instanceColor) this.towers.instanceColor.needsUpdate = true;
-      if (this.shards.instanceColor) this.shards.instanceColor.needsUpdate = true;
-    }
-    this.particles.count = scene === 1 || scene === 4 ? counts : Math.min(counts, scene === 3 ? 5000 : 1600);
-    this.particleBrightness.value = gain * (scene === 1 ? 3.8 : 2.6);
-    this.particleSize.value = 1 + audio.bass * .5;
-    for (let index = 0; index < this.particles.count; index++) {
-      sampleParticle(frame, this.identities[index], this.sample);
-      let { x, y, z } = this.sample;
-      if (scene === 2) y = .03 + audio.beat * .12 + Math.sin(Math.hypot(x, z) * (1 + p[3] * 4) - phase * 2) * (.03 + p[6] * .08);
-      this.positions.setXYZ(index, x, y, z);
-      this.sizes.setX(index, scene === 1 || scene === 4 ? this.sample.size : .018);
-    }
-    this.positions.needsUpdate = true;
-    this.sizes.needsUpdate = true;
-    this.glyphs.visible = scene === 0 || scene === 3 || scene === 4;
-    this.glyphs.count = scene === 4 ? Math.min(instances, 220) : scene === 3 ? Math.max(20, Math.round(instances * p[6])) : instances;
-    this.glyphBrightness.value = gain * (3.6 + audio.high * p[7] * 1.3);
-    this.glyphOpacity.value = Math.min(1, gain + .1);
-    if (this.glyphs.visible) {
-      for (let index = 0; index < this.glyphs.count; index++) {
+      this.particles.count = scene === 1 || scene === 4 ? counts : Math.min(counts, scene === 3 ? 5000 : 1600);
+      this.particleBrightness.value = gain * (scene === 1 ? 3.8 : 2.6);
+      this.particleSize.value = 1 + audio.bass * .5;
+      for (let index = 0; index < this.particles.count; index++) {
         sampleParticle(frame, this.identities[index], this.sample);
-        const v = this.sample;
-        this.dummy.position.set(v.x, v.y, v.z);
-        this.dummy.rotation.set(scene === 3 ? phase * .4 : 0, scene === 0 ? -v.angle + Math.PI / 2 : -v.angle, (p[4] - .5) * .8);
-        this.dummy.scale.setScalar(v.size * (scene === 4 ? 3.2 : 1));
-        this.dummy.updateMatrix(); this.glyphs.setMatrixAt(index, this.dummy.matrix);
+        let { x, y, z } = this.sample;
+        if (scene === 2) y = .03 + audio.beat * .12 + Math.sin(Math.hypot(x, z) * (1 + p[3] * 4) - phase * 2) * (.03 + p[6] * .08);
+        this.positions.setXYZ(index, x, y, z);
+        this.sizes.setX(index, scene === 1 || scene === 4 ? this.sample.size : .018);
       }
-      this.glyphs.instanceMatrix.needsUpdate = true;
-    }
-    this.towers.visible = scene === 2;
-    this.towers.count = Math.min(instances, 961);
-    this.towerMaterial.color.setScalar(gain * (1.2 + audio.beat * p[7]));
-    if (this.towers.visible) {
-      // A seeded permutation distributes low-density buildings across the whole city.
-      for (let index = 0; index < this.towers.count; index++) {
-        sampleParticle(frame, this.identities[(index * 397) % 961], this.sample);
-        const v = this.sample;
-        this.dummy.position.set(v.x, v.y * .5, v.z);
-        this.dummy.rotation.set(0, 0, 0); this.dummy.scale.set(v.size, v.y, v.size);
-        this.dummy.updateMatrix(); this.towers.setMatrixAt(index, this.dummy.matrix);
+      this.positions.needsUpdate = true;
+      this.sizes.needsUpdate = true;
+      this.glyphs.visible = scene === 0 || scene === 3 || scene === 4;
+      this.glyphs.count = scene === 4 ? Math.min(instances, 220) : scene === 3 ? Math.max(20, Math.round(instances * p[6])) : instances;
+      this.glyphBrightness.value = gain * (3.6 + audio.high * p[7] * 1.3);
+      this.glyphOpacity.value = Math.min(1, gain + .1);
+      if (this.glyphs.visible) {
+        for (let index = 0; index < this.glyphs.count; index++) {
+          sampleParticle(frame, this.identities[index], this.sample);
+          const v = this.sample;
+          this.dummy.position.set(v.x, v.y, v.z);
+          this.dummy.rotation.set(scene === 3 ? phase * .4 : 0, scene === 0 ? -v.angle + Math.PI / 2 : -v.angle, (p[4] - .5) * .8);
+          this.dummy.scale.setScalar(v.size * (scene === 4 ? 3.2 : 1));
+          this.dummy.updateMatrix(); this.glyphs.setMatrixAt(index, this.dummy.matrix);
+        }
+        this.glyphs.instanceMatrix.needsUpdate = true;
       }
-      this.towers.instanceMatrix.needsUpdate = true;
-    }
-    this.shards.visible = scene === 3 || scene === 4;
-    this.shards.count = scene === 4 ? Math.min(instances, 150) : instances;
-    this.shardMaterial.color.setScalar(gain * 1.6);
-    if (this.shards.visible) {
-      for (let index = 0; index < this.shards.count; index++) {
-        sampleParticle(frame, this.identities[index], this.sample);
-        const v = this.sample;
-        this.dummy.position.set(v.x, v.y, v.z);
-        this.dummy.rotation.set(v.angle, v.angle * 1.7, phase * (p[4] + .1));
-        this.dummy.scale.set(v.size, v.size * (1 + p[7] * 3), v.size);
-        this.dummy.updateMatrix(); this.shards.setMatrixAt(index, this.dummy.matrix);
+      this.towers.visible = scene === 2;
+      this.towers.count = Math.min(instances, 961);
+      this.towerMaterial.color.setScalar(gain * (1.2 + audio.beat * p[7]));
+      if (this.towers.visible) {
+        // A seeded permutation distributes low-density buildings across the whole city.
+        for (let index = 0; index < this.towers.count; index++) {
+          sampleParticle(frame, this.identities[(index * 397) % 961], this.sample);
+          const v = this.sample;
+          this.dummy.position.set(v.x, v.y * .5, v.z);
+          this.dummy.rotation.set(0, 0, 0); this.dummy.scale.set(v.size, v.y, v.size);
+          this.dummy.updateMatrix(); this.towers.setMatrixAt(index, this.dummy.matrix);
+        }
+        this.towers.instanceMatrix.needsUpdate = true;
       }
-      this.shards.instanceMatrix.needsUpdate = true;
+      this.shards.visible = scene === 3 || scene === 4;
+      this.shards.count = scene === 4 ? Math.min(instances, 150) : instances;
+      this.shardMaterial.color.setScalar(gain * 1.6);
+      if (this.shards.visible) {
+        for (let index = 0; index < this.shards.count; index++) {
+          sampleParticle(frame, this.identities[index], this.sample);
+          const v = this.sample;
+          this.dummy.position.set(v.x, v.y, v.z);
+          this.dummy.rotation.set(v.angle, v.angle * 1.7, phase * (p[4] + .1));
+          this.dummy.scale.set(v.size, v.size * (1 + p[7] * 3), v.size);
+          this.dummy.updateMatrix(); this.shards.setMatrixAt(index, this.dummy.matrix);
+        }
+        this.shards.instanceMatrix.needsUpdate = true;
+      }
+      this.grid.visible = scene === 2 || (!this.session && scene === 0);
+      this.gridMaterial.opacity = (scene === 2 ? .4 + audio.beat * .2 : .1) * gain;
+      this.grid.scale.setScalar(scene === 2 ? .5 + p[0] * .5 : .7);
+      this.core.visible = scene === 4;
+      this.core.position.y = 1 + p[1] * 2;
+      this.core.scale.setScalar((.3 + p[6] * 1.2) * (1 + audio.bass * .3));
+      this.core.rotation.set(phase * .12, phase * .25, phase * .08);
+      this.coreMaterial.color.copy(this.color.setHSL((.64 + hue * .25) % 1, .4, .8)).multiplyScalar(gain * 2);
+      for (let index = 0; index < this.rings.length; index++) {
+        const ring = this.rings[index];
+        ring.visible = scene === 4 || scene === 0 || scene === 2;
+        const radius = scene === 4 ? .6 + index * .42 + p[6] : scene === 0 ? 2.6 + p[6] * 1.6 : 1 + ((phase * .6 + index * 1.1) % 5);
+        ring.scale.setScalar(radius);
+        ring.position.set(0, scene === 4 ? this.core.position.y : scene === 0 ? 1 + index * (1 + p[1] * .3) : .03, 0);
+        ring.rotation.set(Math.PI / 2 + (scene === 4 ? Math.sin(index * 1.8) * .55 : 0), scene === 4 ? phase * .06 + index * .45 : 0, 0);
+      }
+      this.ringMaterial.color.copy(this.color.setHSL((.49 + (hue - .5) * .3) % 1, .85, .6)).multiplyScalar(gain * (1 + audio.beat * .5));
+    } else {
+      this.particles.visible = this.glyphs.visible = this.towers.visible = this.shards.visible = false;
+      this.grid.visible = this.core.visible = false;
+      for (const ring of this.rings) ring.visible = false;
     }
-    this.grid.visible = scene === 2 || (!this.session && scene === 0);
-    this.gridMaterial.opacity = (scene === 2 ? .4 + audio.beat * .2 : .1) * gain;
-    this.grid.scale.setScalar(scene === 2 ? .5 + p[0] * .5 : .7);
-    this.core.visible = scene === 4;
-    this.core.position.y = 1 + p[1] * 2;
-    this.core.scale.setScalar((.3 + p[6] * 1.2) * (1 + audio.bass * .3));
-    this.core.rotation.set(phase * .12, phase * .25, phase * .08);
-    this.coreMaterial.color.copy(this.color.setHSL((.64 + hue * .25) % 1, .4, .8)).multiplyScalar(gain * 2);
-    for (let index = 0; index < this.rings.length; index++) {
-      const ring = this.rings[index];
-      ring.visible = scene === 4 || scene === 0 || scene === 2;
-      const radius = scene === 4 ? .6 + index * .42 + p[6] : scene === 0 ? 2.6 + p[6] * 1.6 : 1 + ((phase * .6 + index * 1.1) % 5);
-      ring.scale.setScalar(radius);
-      ring.position.set(0, scene === 4 ? this.core.position.y : scene === 0 ? 1 + index * (1 + p[1] * .3) : .03, 0);
-      ring.rotation.set(Math.PI / 2 + (scene === 4 ? Math.sin(index * 1.8) * .55 : 0), scene === 4 ? phase * .06 + index * .45 : 0, 0);
-    }
-    this.ringMaterial.color.copy(this.color.setHSL((.49 + (hue - .5) * .3) % 1, .85, .6)).multiplyScalar(gain * (1 + audio.beat * .5));
     this.flash.visible = effects.flash > .005;
     this.flash.scale.setScalar(.4 + effects.flash * 2);
     this.flashMaterial.opacity = effects.flash * .65 * gain;
@@ -520,10 +537,12 @@ export class ShowRenderer {
     }
     // A stalled client cannot advance old data indefinitely. The client refreshes this anchor every RAF.
     const time = this.latestServerTime + Math.min(150, Math.max(0, now - this.receivedAt));
-    this.renderVisual(visualFrame(this.latestState, this.latestAudio, time));
-    if (!this.session) this.orbit.update();
-    this.updateCalibrationCursor();
-    try { this.pipeline.render(); }
+    try {
+      this.renderVisual(visualFrame(this.latestState, this.latestAudio, time));
+      if (!this.session) this.orbit.update();
+      this.updateCalibrationCursor();
+      this.pipeline.render();
+    }
     catch (error) {
       this.renderer.setAnimationLoop(null); this.fpsValue = 0;
       this.report(`Rendering stopped: ${messageOf(error)}`);

@@ -23,6 +23,18 @@ All fonts are system monospace and the code atlas is generated locally. No exter
 | NEON DATA CITY | Instanced wireframe towers, street grid and expanding rings | Bass raises towers, beat drives street ripples and window brightness |
 | GLITCH STORM | Spinning tetrahedron shards, code fragments and particles | High drives seeded tearing, bass and mid deform the storm |
 | SINGULARITY | Infalling spiral particles, code fragments, tilted accretion rings and a central polyhedron | Bass enlarges the core and particles; the scheduled DROP contracts, flashes and releases a seeded spherical burst |
+| TIDAL SILK | Broad folded ribbon surfaces forming a tidal curtain | Audio modulates ribbon folding and shimmer |
+| MYCELIUM CHOIR | Branching stems, layered canopies, and drifting spores | Audio modulates growth-like sway and colony brightness |
+| ABYSSAL BLOOM | Pulsing bell surfaces and curling tendrils | Audio changes bell pulse and tendril motion |
+| LIQUID MERCURY | A reflective-looking lobed fluid surface | Audio drives ripples and surface deformation |
+| EMBER MIGRATION | Winged silhouettes and stretched trails | Audio modulates wingbeats, bank, and flock character |
+| ORIGAMI ENGINE | Tessellated folded facets and articulated creases | Audio changes fold angle and crease contrast |
+| MOIRE OBSERVATORY | Layered line lattices with interference patterns | Audio modulates lattice angle and interference drift |
+| IMPOSSIBLE LOOM | Interlaced thick threads forming sculptural knots | Audio modulates braid twist and weave tension |
+| GRAVITY PALIMPSEST | Layers of eroded floating blocks and arches | Audio modulates levitation and erosion character |
+| PRISMATIC PORTAL | Nested polygonal apertures extending into a tunnel | Audio changes tunnel twist and spectral separation |
+
+The catalog preserves IDs 0–4 for the original scenes and appends ten scenes as IDs 5–14. Signal, Organic, and Structures are dashboard navigation groups, not controller banks. The physical S buttons remain fixed to the first eight presets; REW/FF wrap the complete 15-scene catalog. [Scene catalog and all knob labels](scene-catalog.md) describe each preset.
 
 Each scene exposes eight knob labels from `PRESET_PARAMETERS` in `web/visuals/parameters.ts`. The corresponding values control dimensions, primitive size, topology, palette and motion character. The shared faders control intensity, density, motion speed, global scale, distortion, Bloom gain, glitch probability and master effect strength.
 
@@ -57,4 +69,6 @@ Calibration is cleared on session entry, session exit and reference-space reset.
 
 `tests/visuals.test.ts` exercises deterministic particle identity, frame-history independence, extreme controls, long-running audio modulation, paused phase, per-scene registries, DROP timing and expiry, one-shot Freeze anchors, floor-ray intersection, calibration validation and coordinate transformation.
 
-Desktop browser checks during implementation compiled and rendered all five actual TSL scenes without browser errors. The transparent Bloom output was composited over a checkerboard to confirm empty pixels reveal the background. Two desktop floor clicks produced a calibrated state and reset cleared it. These checks do not verify XR stereo, passthrough brightness, controller poses, headset frame rate or real-room alignment. No connected Quest device was used; hardware testing remains deferred at the user's request.
+Historical desktop browser checks for the initial implementation compiled and rendered the original five actual TSL scenes without browser errors. The transparent Bloom output was composited over a checkerboard to confirm empty pixels reveal the background. Two desktop floor clicks produced a calibrated state and reset cleared it. These checks do not verify XR stereo, passthrough brightness, controller poses, headset frame rate or real-room alignment. No connected Quest device was used; hardware testing remains deferred at the user's request.
+
+The ten additional scenes require new coverage for each preset, extreme parameter values, quality changes, DROP/STOP, scene switching, transparency, and sustained frame times. Original five-scene browser results do not establish those new results. New real-HMD tests remain deferred: stereo passthrough/Bloom, floor scale, calibration, and two-headset timing have not been established for these additions.
