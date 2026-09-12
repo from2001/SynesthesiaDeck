@@ -3,6 +3,9 @@ import * as THREE from 'three/webgpu';
 import { initialState, SCENES, syntheticAudio } from '../shared/protocol';
 import { OrganicPresets } from '../web/visuals/organic-presets';
 import { ArchitecturalPresets } from '../web/visuals/architectural-presets';
+import { EchoPresets } from '../web/visuals/echo-presets';
+import { LaserPresets } from '../web/visuals/laser-presets';
+import { UnchartedPresets } from '../web/visuals/uncharted-presets';
 import { visualFrame } from '../web/visuals/math';
 import type { Quality } from '../web/visuals/parameters';
 
@@ -23,20 +26,22 @@ function visibleGeometry(group: THREE.Group) {
 }
 
 describe('experimental bank integration', () => {
-  it('switches between both banks and back to the original bank without retaining visible geometry', () => {
-    const organic = new OrganicPresets(), architectural = new ArchitecturalPresets();
+  it('switches between every bank and back to the original bank without retaining visible geometry', () => {
+    const banks = [new OrganicPresets(), new ArchitecturalPresets(), new EchoPresets(), new LaserPresets(), new UnchartedPresets()];
     const state = initialState('library'); state.running = true;
-    for (const scene of [5, 14, 9, 10, 6, 11, 7, 12, 8, 13, 0]) {
+    for (const scene of [5, 14, 9, 10, 6, 11, 7, 12, 8, 13, 15, 29, 20, 25, 19, 24, 16, 21, 26, 17, 22, 27, 18, 23, 28, 0]) {
       state.scene = scene;
       const frame = visualFrame(state, syntheticAudio(3500), 3500);
-      organic.update(frame, 'medium', .7); architectural.update(frame, 'medium', .7);
-      expect(visibleGeometry(organic.group) > 0).toBe(scene >= 5 && scene < 10);
-      expect(visibleGeometry(architectural.group) > 0).toBe(scene >= 10);
+      for (const bank of banks) bank.update(frame, 'medium', .7);
+      banks.forEach((bank, index) => {
+        const first = 5 + index * 5;
+        expect(visibleGeometry(bank.group) > 0, `scene ${scene}, bank ${index}`).toBe(scene >= first && scene < first + 5);
+      });
     }
   });
 
   it('reuses geometry and materials across scene, seed and quality changes without mutating shared state', () => {
-    const banks = [new OrganicPresets(), new ArchitecturalPresets()];
+    const banks = [new OrganicPresets(), new ArchitecturalPresets(), new EchoPresets(), new LaserPresets(), new UnchartedPresets()];
     const before = banks.map(bank => resources(bank.group));
     for (let scene = 5; scene < SCENES.length; scene++) {
       for (const quality of ['low', 'medium', 'high'] as Quality[]) {

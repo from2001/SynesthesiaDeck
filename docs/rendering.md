@@ -33,8 +33,23 @@ All fonts are system monospace and the code atlas is generated locally. No exter
 | IMPOSSIBLE LOOM | Interlaced thick threads forming sculptural knots | Audio modulates braid twist and weave tension |
 | GRAVITY PALIMPSEST | Layers of eroded floating blocks and arches | Audio modulates levitation and erosion character |
 | PRISMATIC PORTAL | Nested polygonal apertures extending into a tunnel | Audio changes tunnel twist and spectral separation |
+| WAVEFORM ATLAS | Additive oscilloscope traces on a curved wall | Each trace scales with one band (level, bass, low mid, mid, high); beat drives a traveling spike |
+| SYNAPSE RELAY | Instanced icosahedron nodes, additive links, packet sprites | Bass swells nodes, mid brightens links, beat brightens packets and arrival glow |
+| KELP FOREST | Spine lines, blade quads, bubble sprites | Bass widens the current sway; mid and high brighten spines and blades |
+| AURORA CURTAIN | Additive folded surfaces with vertical ray lines | High shimmer sharpens the ray pattern |
+| PENDULUM HALL | Instanced bobs, string/rail lines, afterimage sprites | Beat brightens and slightly enlarges bobs; bass nudges swing amplitude |
+| LASER HARP | Additive core lines, instanced haze cylinders, pluck spots | Each string follows one band; beat plucks seeded strings, cutting the beam |
+| SPECTRUM FAN | Core lines, haze cylinders, additive fan sheets, floor spots | Level, mid and high brighten beams; beat tilts fans and lights floor spots |
+| PHOTON TUNNEL | Additive ring polylines, cone core lines and haze | Bass breathes ring radius; beat brightens the traveling ring arcs |
+| GALVO LISSAJOUS | Fading trace polyline, projector cone, screen frame | Mid widens the figure, bass lifts it, beat brightens the scan head |
+| NOVA STARBURST | Core lines, haze cylinders, emitter and floor-spot sprites | Level brightens spokes; beat flashes seeded spokes and floor spots |
+| DOMINO CASCADE | Instanced shaded boxes on a spiral floor path | Beat brightens standing dominoes; topple glow follows the wave front |
+| GLOWSTICK CROWD | Additive stick-figure lines with instanced heads | Beat adds bounce and brightens glowsticks; level brightens bodies |
+| LANTERN ASCENT | Instanced gradient-shaded lanterns with flame sprites | Bass adds flame flicker |
+| AUTOMATON WALL | Instanced cell quads with per-instance color | Beat brightens the newest generation; high adds glitch displacement |
+| HANABI SKY | Spark sprites with trail lines, rising streaks, flash sprites | Beat brightens sparks; bass enlarges them |
 
-The catalog preserves IDs 0–4 for the original scenes and appends ten scenes as IDs 5–14. Signal, Organic, and Structures are dashboard navigation groups, not controller banks. The physical S buttons remain fixed to the first eight presets; REW/FF wrap the complete 15-scene catalog. [Scene catalog and all knob labels](scene-catalog.md) describe each preset.
+The catalog preserves IDs 0–4 for the original scenes, appends ten scenes as IDs 5–14, and appends the 2026-09-12 banks as IDs 15–29: Echoes (`web/visuals/echo-presets.ts`), Lasers (`web/visuals/laser-presets.ts`) and Uncharted (`web/visuals/uncharted-presets.ts`), each with a pure sampling module and shared helpers in `bank-math.ts` and `dynamic-geometry.ts`. Signal, Organic, Structures, Echoes, Lasers, and Uncharted are dashboard navigation groups, not controller banks. The physical S buttons remain fixed to the first eight presets; REW/FF wrap the complete 30-scene catalog. [Scene catalog and all knob labels](scene-catalog.md) describe each preset.
 
 Each scene exposes eight knob labels from `PRESET_PARAMETERS` in `web/visuals/parameters.ts`. The corresponding values control dimensions, primitive size, topology, palette and motion character. The shared faders control intensity, density, motion speed, global scale, distortion, Bloom gain, glitch probability and master effect strength.
 
@@ -67,8 +82,8 @@ Calibration is cleared on session entry, session exit and reference-space reset.
 
 ## Verification
 
-`tests/visuals.test.ts` exercises deterministic particle identity, frame-history independence, extreme controls, long-running audio modulation, paused phase, per-scene registries, DROP timing and expiry, one-shot Freeze anchors, floor-ray intersection, calibration validation and coordinate transformation.
+`tests/visuals.test.ts` exercises deterministic particle identity, frame-history independence, extreme controls, long-running audio modulation, paused phase, per-scene registries, DROP timing and expiry, one-shot Freeze anchors, floor-ray intersection, calibration validation and coordinate transformation. `tests/echo-presets.test.ts`, `tests/laser-presets.test.ts` and `tests/uncharted-presets.test.ts` cover every knob of the fifteen 2026-09-12 presets, history- and quality-independent geometry, finite output under every effect at both parameter extremes, Medium draw-call and vertex budgets, bank visibility, and scene-specific invariants (closed rings and figures, pendulum realignment, floor-rooted kelp, beam floor hits, domino fronts, dancer posture, lantern fades, automaton rule application and ballistic sparks).
 
 Historical desktop browser checks for the initial implementation compiled and rendered the original five actual TSL scenes without browser errors. The transparent Bloom output was composited over a checkerboard to confirm empty pixels reveal the background. Two desktop floor clicks produced a calibrated state and reset cleared it. These checks do not verify XR stereo, passthrough brightness, controller poses, headset frame rate or real-room alignment. No connected Quest device was used; hardware testing remains deferred at the user's request.
 
-The ten additional scenes require new coverage for each preset, extreme parameter values, quality changes, DROP/STOP, scene switching, transparency, and sustained frame times. Original five-scene browser results do not establish those new results. New real-HMD tests remain deferred: stereo passthrough/Bloom, floor scale, calibration, and two-headset timing have not been established for these additions.
+The ten additional scenes require new coverage for each preset, extreme parameter values, quality changes, DROP/STOP, scene switching, transparency, and sustained frame times. Original five-scene browser results do not establish those new results. The fifteen 2026-09-12 presets were rendered from the production bundle in a headless software-rendered Chromium without console errors; that confirms the render path compiles and draws, not headset frame timing or passthrough composition. New real-HMD tests remain deferred: stereo passthrough/Bloom, floor scale, calibration, and two-headset timing have not been established for these additions.

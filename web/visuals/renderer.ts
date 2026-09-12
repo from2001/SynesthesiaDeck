@@ -8,6 +8,9 @@ import { floorIntersection, particleIdentity, sampleParticle, solveCalibration, 
 import { QUALITY_BUDGETS, visibleCount, type Quality } from './parameters';
 import { OrganicPresets } from './organic-presets';
 import { ArchitecturalPresets } from './architectural-presets';
+import { EchoPresets } from './echo-presets';
+import { LaserPresets } from './laser-presets';
+import { UnchartedPresets } from './uncharted-presets';
 
 const MAX_PARTICLES = QUALITY_BUDGETS.high.particles;
 const MAX_INSTANCES = QUALITY_BUDGETS.high.instances;
@@ -32,6 +35,9 @@ export class ShowRenderer {
   private content = new THREE.Group();
   private organic!: OrganicPresets;
   private architectural!: ArchitecturalPresets;
+  private echo!: EchoPresets;
+  private laser!: LaserPresets;
+  private uncharted!: UnchartedPresets;
   private resizeObserver!: ResizeObserver;
   private quality: Quality = 'medium';
   private initialized = false;
@@ -331,7 +337,10 @@ export class ShowRenderer {
     this.content.add(this.burst);
     this.organic = new OrganicPresets();
     this.architectural = new ArchitecturalPresets();
-    this.content.add(this.organic.group, this.architectural.group);
+    this.echo = new EchoPresets();
+    this.laser = new LaserPresets();
+    this.uncharted = new UnchartedPresets();
+    this.content.add(this.organic.group, this.architectural.group, this.echo.group, this.laser.group, this.uncharted.group);
     this.content.visible = false;
   }
 
@@ -408,9 +417,12 @@ export class ShowRenderer {
     const scale = (.55 + state.controls.scale * .9) * (1 + pulse + audio.bass * (scene === 0 ? .055 : .015));
     this.content.scale.setScalar(scale * effects.contraction);
     this.content.rotation.y = (state.toggles[0] ? phase * .15 * fx : 0) + effects.oneShots[0] * Math.PI * .5;
-    // Experimental scenes own their geometry, while all fifteen share show transforms and Bloom.
+    // Bank scenes own their geometry, while all thirty share show transforms and Bloom.
     this.organic.update(frame, this.quality, gain);
     this.architectural.update(frame, this.quality, gain);
+    this.echo.update(frame, this.quality, gain);
+    this.laser.update(frame, this.quality, gain);
+    this.uncharted.update(frame, this.quality, gain);
     if (scene < 5) {
       this.particles.visible = true;
       const hue = p[5] + (state.toggles[6] ? phase * .06 * fx : 0) + effects.oneShots[6] * .3;

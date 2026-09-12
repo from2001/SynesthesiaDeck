@@ -1,4 +1,4 @@
-# Preview all 15 scenes on a Quest
+# Preview all 30 scenes on a Quest
 
 The Mac remains the show controller. The headset opens the audience page, enters MR, and follows scene changes from the Mac. No APK installation is required. This guide is prepared for a headset that is available for this project; the connected Quest 3S assigned to another project has not been operated or tested.
 
@@ -39,7 +39,7 @@ Meta documents ADB reverse port forwarding for loading a local development serve
 
 6. Follow the in-headset alignment prompts. Point a controller ray at floor origin **A** and press the trigger, then select forward point **B** at least 30 cm away. For two headsets, mark the same physical A and B and repeat on each device. **Align room** repeats the process; **Reset alignment** clears it.
 
-7. Leave the headset in MR and use the Mac's **Preview scene** dropdown or **Previous / Next** buttons to browse all 15 scenes. Presets 06–15 are the ten additions. The larger scene cards and the MIDI controller also select scenes: S1–S8 select 01–08, while REW/FF wrap through all 15. **Clear** hides the content; **Play** resumes it. **DROP** can transition to the selected destination.
+7. Leave the headset in MR and use the Mac's **Preview scene** dropdown or **Previous / Next** buttons to browse all 30 scenes. Presets 06–15 are the ten experimental additions; presets 16–30 are the Echoes, Lasers and Uncharted banks. The larger scene cards and the MIDI controller also select scenes: S1–S8 select 01–08, while REW/FF wrap through all 30. **Clear** hides the content; **Play** resumes it. **DROP** can transition to the selected destination.
 
 When finished, exit MR in the headset. If this session created the reverse mapping, remove only that mapping, using the actual headset port selected above:
 
@@ -53,7 +53,7 @@ Use a trusted HTTPS/WSS endpoint following [server and TLS setup](server.md#secu
 
 ## What to check
 
-- Inspect every scene in both eyes: transparent empty space, Bloom halos, visible surfaces, depth, and comfortable scale. Mercury's reflections are procedural lighting, not a reflection of the physical room.
+- Inspect every scene in both eyes: transparent empty space, Bloom halos, visible surfaces, depth, and comfortable scale. Mercury's reflections are procedural lighting, not a reflection of the physical room. Laser beams are additive lines and haze; check that thin cores stay visible in passthrough and that floor spots land on the real floor after alignment. Dominoes, dancers and the automaton wall sit at floor level, so verify the A/B alignment before judging their scale.
 - Move and turn while trying Low first. Raise quality only after checking sustained frame timing on the actual headset. Desktop FPS and geometry budgets are not headset performance measurements.
 - Exercise scene changes, eight scene knobs, Density/Glow, DROP, Clear/Play, and reconnection. Check that the Mac's scene and seed match the audience.
 - For two devices, verify the same A/B alignment and a third physical point, then measure presentation skew and network stability. A matching scene name alone does not prove synchronized display timing.

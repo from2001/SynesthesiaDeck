@@ -56,7 +56,7 @@ describe('deterministic procedural scenes', () => {
   });
 
   it('exposes eight scene-specific parameters and caps tier counts', () => {
-    expect(SCENES).toHaveLength(15);
+    expect(SCENES).toHaveLength(30);
     expect(PRESET_PARAMETERS).toHaveLength(SCENES.length);
     for (const labels of PRESET_PARAMETERS) expect(new Set(labels).size).toBe(8);
     const state = playing();

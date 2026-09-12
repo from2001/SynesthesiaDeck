@@ -66,11 +66,11 @@ The native bridge emits canonical channel 1 CC messages after its optional hardw
 | S1–S8 | 32–39 | Fixed presets 01–08: CODE CATHEDRAL through ABYSSAL BLOOM |
 | M1–M8 | 48–55 | One-shot Orbit, Pulse, Twist, Mirror, Scatter, Strobe, Prism, Freeze slots |
 | R1–R8 | 64–71 | Persistent toggle for the same effect slots |
-| REW / FF | 43 / 44 | Previous / next of all 15 scenes, wrapping from the projected pending scene |
+| REW / FF | 43 / 44 | Previous / next of all 30 scenes, wrapping from the projected pending scene |
 | STOP / PLAY | 42 / 41 | Visual clear and pause / start or resume |
 | Transport REC | 45 | Scheduled DROP, default 1800 ms / strength 0.7 |
 
-The eight S buttons always select the first eight presets, regardless of the current scene. There is no hidden bank-switch mode. Presets 09–15 are selected from the dashboard or by REW/FF; REW wraps 01 → 15 and FF wraps 15 → 01. The dashboard shows actual S1–S8 labels only and explains this fixed mapping. See the [complete scene catalog](scene-catalog.md) for names and knob labels.
+The eight S buttons always select the first eight presets, regardless of the current scene. There is no hidden bank-switch mode. Presets 09–30 are selected from the dashboard or by REW/FF; REW wraps 01 → 30 and FF wraps 30 → 01. The dashboard shows actual S1–S8 labels only and explains this fixed mapping. See the [complete scene catalog](scene-catalog.md) for names and knob labels.
 
 Buttons trigger only on the rising edge (positive CC or note-on velocity), and releases never retrigger. Repeated presses inside 35 ms are suppressed. Native profiles for hardware toggle-mode buttons emit one canonical press/release pulse for each physical press. R toggles use projected authoritative state, so rapid separate presses and dashboard changes agree. There is no outbound MIDI feedback, preventing echo loops.
 
