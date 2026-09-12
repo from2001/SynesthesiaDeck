@@ -7,7 +7,7 @@ The software is integrated and usable for a desktop demonstration. On 2026-09-09
 | Check | Evidence/result |
 | --- | --- |
 | TypeScript protocol, server, client, and renderer | Typecheck and production build pass |
-| Automated TypeScript tests | 120 tests across protocol, server HTTP/WS, MIDI mapping, browser connection recovery, endpoint selection and credential isolation, tunnel supervision and exclusive ownership, clock/interpolation, all 15 presets, visual math/effects, and calibration |
+| Automated TypeScript tests | 151 tests across protocol, server HTTP/WS, MIDI mapping, browser connection recovery, endpoint selection and credential isolation, tunnel supervision and exclusive ownership, clock/interpolation, all 30 presets, visual math/effects, and calibration |
 | Swift package | Debug/release builds and 13 DSP/MIDI/clock tests pass |
 | Dependency audit | Zero reported vulnerabilities at verification time |
 | Actual native-to-server integration | `npm run verify:system` uses the real Swift executable, authenticated HTTP ingress and two certificate-validated WSS consumers |
@@ -18,7 +18,7 @@ The software is integrated and usable for a desktop demonstration. On 2026-09-09
 | Desktop production browser | Actual hashed production JS bundle loaded; renderer ready; no page errors or Vite overlay |
 | Desk-to-audience flow | Separate Chrome sessions agree on scene/seed; Glow, effect toggle, Freeze burst, DROP destination, Clear/Play, and audience reload verified |
 | Server disconnect/reconnect | Audience showed Reconnecting, then recovered a cleared snapshot after production-server restart |
-| Visual inspection | All 15 presets rendered and individually inspected in the final production build; desktop transparent-Bloom checkerboard and desktop A/B calibration/reset were inspected during the original five-scene delivery |
+| Visual inspection | All 15 original presets rendered and individually inspected in the final production build; desktop transparent-Bloom checkerboard and desktop A/B calibration/reset were inspected during the original five-scene delivery. The fifteen 2026-09-12 presets were rendered from the production bundle in headless software-rendered Chromium and inspected as screenshots (see below) |
 | Responsive desk | Original delivery checked 1440 × 1000 and 390 × 844. Expanded catalog checked at the current 876-pixel desk width with no horizontal overflow; expanded mobile layout has not been revalidated |
 
 The native source selector in the integrated script deliberately matches no physical MIDI device, and the audio fixture is synthetic. The measured feature age is **not** end-to-end audio-to-visual latency or headset presentation skew. Desktop Chrome FPS samples do not establish a headset frame-time budget. These distinctions must remain visible in future reports.
@@ -36,6 +36,16 @@ Automated tests cover the expanded schema bounds, fixed S1–S8 shortcuts, full-
 Local evidence is under ignored `artifacts/scene-expansion/`: `final-01.png` through `final-15.png`, `quality-8-{low,high,medium}.png`, `quality-12-{low,high,medium}.png`, `cleared.png`, `desktop-catalog.png`, and `system-verification.json`. Vite reports a non-fatal bundle-size warning at 969.29 kB minified / 268.38 kB gzip; no additional asset or CDN requests are required.
 
 The [Quest preview guide](hmd-preview.md) documents USB port forwarding, wireless trusted HTTPS/WSS, MR entry, A/B alignment, and scene control from the Mac. The agent has not executed its device commands. The user has since reported successful HMD viewing, while measured stereo composition, passthrough Bloom, physical scale/alignment, two-headset presentation timing, and sustained hardware performance remain pending for the expanded catalog.
+
+## Fifteen-scene bank expansion (2026-09-12)
+
+Three banks of five presets were appended as IDs 15–29 without moving any existing ID: Echoes (WAVEFORM ATLAS, SYNAPSE RELAY, KELP FOREST, AURORA CURTAIN, PENDULUM HALL) continue the Signal / Organic / Structures families; Lasers (LASER HARP, SPECTRUM FAN, PHOTON TUNNEL, GALVO LISSAJOUS, NOVA STARBURST) are beam-based laser-show effects; Uncharted (DOMINO CASCADE, GLOWSTICK CROWD, LANTERN ASCENT, AUTOMATON WALL, HANABI SKY) use vocabularies none of the earlier scenes share. Every preset samples absolute show phase and the shared seed; the schema bound, dashboard groups, DROP destinations, REW/FF wrapping and fixed S1–S8 mapping follow the 30-entry catalog automatically.
+
+Typecheck, 151 automated tests and the production build pass. The bank tests cover every one of the 120 new knob/scene combinations, identical geometry after different histories and quality tiers, finite geometry with all effects at both parameter extremes, Medium draw-call and vertex budgets, bank visibility, and scene invariants. Vite reports the same non-fatal bundle-size warning at 1,021.58 kB minified / 283.95 kB gzip.
+
+The production bundle was served by `npm run start -- --synthetic` and loaded in a headless Chromium 141 using SwiftShader WebGL2 through Playwright. The desk authenticated, pressed Play, selected each of the fifteen new presets through the visible dropdown, and captured the viewer at Medium and again zoomed at High; all fifteen drew their intended geometry and no console error or renderer failure message was observed. Software rendering ran at roughly 7–12 FPS, which says nothing about hardware frame timing. Screenshots are under ignored `artifacts/new-scenes/`.
+
+Not established for these fifteen presets: any headset display, stereo passthrough composition, Bloom over passthrough, physical scale, alignment against a real floor, sustained hardware frame rate, two-headset skew, or live music behavior. Agent-operated headset validation remains deferred until the device is explicitly available for this project.
 
 ## Vercel frontend and Mac HTTPS/WSS preview
 
@@ -57,7 +67,7 @@ The current Wi-Fi resolver could not resolve an allocated Cloudflare Quick Tunne
 | #3, #4 | HTTPS/WSS setup, WebGL2-backed MR sessions, transparent TSL Bloom | Trusted venue access on two HMDs; actual both-eye passthrough/Bloom |
 | #6, #7, #13, #14 | Capture, DSP, CoreMIDI, custom profiles and show control mapping | Two named playback apps, live music behavior, all physical controls and hot-plug |
 | #8, #9 | Offset filtering, event scheduling, buffered features/controls, snapshots and reconnect | Actual multi-HMD presentation skew and venue jitter measurements |
-| #10, #11, #16–#20 | Original five presets plus ten experimental additions, deterministic phase/identity, quality tiers and DROP/one-shot/toggle effects | Both-eye visual inspection, peak-load headset performance and real REC execution |
+| #10, #11, #16–#20 | Original five presets plus ten experimental additions and the fifteen 2026-09-12 bank presets, deterministic phase/identity, quality tiers and DROP/one-shot/toggle effects | Both-eye visual inspection, peak-load headset performance and real REC execution |
 | #15 | Complete operator dashboard and desktop control/client flow | Physical-device telemetry during immersive use remains part of the hardware gate |
 | #21 | Two-floor-point transform, controller workflow, session/reset invalidation | Physical A/B/third-point alignment error across two HMDs |
 | #12, #22 | Reproducible diagnostic tools, source-specific evidence and rehearsal/runbook | Real audio + physical controller + two-HMD MVP; 30-minute hardware soak and live rehearsal |

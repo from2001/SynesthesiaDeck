@@ -59,6 +59,9 @@ select { background: #172131; color: #d9e2ed; border: 1px solid #354155; border-
 .scene-group + .scene-group { border-top: 1px solid #253040; }
 .scene-group-organic { --scene-accent: #efbf91; }
 .scene-group-structure { --scene-accent: #baaef7; }
+.scene-group-echo { --scene-accent: #8fd9f2; }
+.scene-group-laser { --scene-accent: #ff6fa8; }
+.scene-group-uncharted { --scene-accent: #ffd479; }
 .scene-group-head { display: flex; align-items: baseline; justify-content: space-between; gap: 12px; margin-bottom: 10px; }
 .scene-group-head h3 { color: var(--scene-accent); font: 500 12px 'Space Grotesk', system-ui, sans-serif; letter-spacing: .6px; margin: 0; }
 .scene-group-head > span { color: #8190a5; font-size: 10px; text-align: right; }
@@ -73,6 +76,9 @@ select { background: #172131; color: #d9e2ed; border: 1px solid #354155; border-
 .scene-button.active .number, .scene-button.active .scene-shortcut { color: var(--scene-accent); }
 .scene-group-organic .scene-button.active { background: #33271f; }
 .scene-group-structure .scene-button.active { background: #29243a; }
+.scene-group-echo .scene-button.active { background: #1c2f38; }
+.scene-group-laser .scene-button.active { background: #35202c; }
+.scene-group-uncharted .scene-button.active { background: #35301f; }
 .scene-button.pending { border-style: dashed; border-color: #e4c17c; }
 .scene-midi-note { margin: 0 16px; border-top: 1px solid #253040; padding: 12px 0; color: #91a2b8; font: 10px/1.7 ui-monospace, monospace; }
 .controls { margin-top: 18px; }.control-grid { display: grid; grid-template-columns: repeat(8, minmax(0, 1fr)); padding: 21px 13px 17px; gap: 4px; }

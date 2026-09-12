@@ -25,6 +25,21 @@ export const PRESET_PARAMETERS = [
   ['Weave spread', 'Loom height', 'Thread thickness', 'Weave count', 'Braid twist', 'Palette hue', 'Knot radius', 'Weave tension'],
   ['Ruin span', 'Ruin height', 'Block size', 'Layer count', 'Levitation', 'Palette hue', 'Arch span', 'Erosion'],
   ['Portal spread', 'Portal height', 'Aperture thickness', 'Polygon sides', 'Tunnel twist', 'Palette hue', 'Tunnel depth', 'Spectral split'],
+  ['Wall span', 'Stack height', 'Trace amplitude', 'Trace count', 'Sweep speed', 'Palette hue', 'Wall curvature', 'Spike gain'],
+  ['Network span', 'Node height', 'Node size', 'Link density', 'Packet speed', 'Palette hue', 'Cluster spread', 'Firing glow'],
+  ['Forest spread', 'Kelp height', 'Blade length', 'Blade count', 'Current sway', 'Palette hue', 'Frond droop', 'Bubble drift'],
+  ['Curtain span', 'Curtain height', 'Ray length', 'Fold count', 'Ripple speed', 'Palette hue', 'Curtain depth', 'Ray shimmer'],
+  ['Row span', 'Pivot height', 'Bob size', 'Pendulum count', 'Swing amplitude', 'Palette hue', 'Row curvature', 'Afterimage'],
+  ['Harp span', 'Beam height', 'Beam width', 'String count', 'Fan angle', 'Palette hue', 'Pluck depth', 'Beam haze'],
+  ['Emitter spread', 'Emitter height', 'Beam width', 'Beams per fan', 'Sweep speed', 'Palette hue', 'Fan angle', 'Sheet haze'],
+  ['Tunnel radius', 'Tunnel height', 'Beam width', 'Ring count', 'Spin speed', 'Palette hue', 'Tunnel depth', 'Cone beams'],
+  ['Screen span', 'Screen height', 'Beam width', 'Figure ratio', 'Scan speed', 'Palette hue', 'Throw distance', 'Trace persistence'],
+  ['Burst reach', 'Emitter height', 'Beam width', 'Spoke count', 'Spin speed', 'Palette hue', 'Spoke tilt', 'Hit sparkle'],
+  ['Spiral pitch', 'Domino height', 'Domino width', 'Domino count', 'Wave speed', 'Palette hue', 'Inner radius', 'Topple glow'],
+  ['Crowd spread', 'Dancer height', 'Stick length', 'Dancer count', 'Dance tempo', 'Palette hue', 'Move intensity', 'Stick glow'],
+  ['Launch spread', 'Climb height', 'Lantern size', 'Lantern count', 'Climb speed', 'Palette hue', 'Sway width', 'Flame flicker'],
+  ['Wall span', 'Wall height', 'Cell fill', 'Rule family', 'Generation rate', 'Palette hue', 'Wall curvature', 'Age fade'],
+  ['Launch spread', 'Burst height', 'Spark size', 'Spark count', 'Launch rate', 'Palette hue', 'Burst radius', 'Trail length'],
 ] as const;
 
 export const EFFECT_DESCRIPTIONS = [

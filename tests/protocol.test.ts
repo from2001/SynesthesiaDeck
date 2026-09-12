@@ -19,10 +19,13 @@ describe('shared contract', () => {
     expect(CommandSchema.safeParse({ type: 'start', unexpected: true }).success).toBe(false);
     expect(NativeMessageSchema.safeParse({ version: 2, type: 'audio', timestamp: 0, source: 'system', audio: syntheticAudio(0) }).success).toBe(false);
   });
-  it('preserves original IDs and validates all fifteen scene and DROP destinations', () => {
-    expect(SCENE_COUNT).toBe(15);
+  it('preserves original IDs and validates all thirty scene and DROP destinations', () => {
+    expect(SCENE_COUNT).toBe(30);
     expect(SCENES.slice(0, 5)).toEqual(['CODE CATHEDRAL', 'VECTOR FIELD', 'NEON DATA CITY', 'GLITCH STORM', 'SINGULARITY']);
     expect(SCENES[14]).toBe('PRISMATIC PORTAL');
+    expect(SCENES.slice(15, 20)).toEqual(['WAVEFORM ATLAS', 'SYNAPSE RELAY', 'KELP FOREST', 'AURORA CURTAIN', 'PENDULUM HALL']);
+    expect(SCENES.slice(20, 25)).toEqual(['LASER HARP', 'SPECTRUM FAN', 'PHOTON TUNNEL', 'GALVO LISSAJOUS', 'NOVA STARBURST']);
+    expect(SCENES.slice(25)).toEqual(['DOMINO CASCADE', 'GLOWSTICK CROWD', 'LANTERN ASCENT', 'AUTOMATON WALL', 'HANABI SKY']);
     for (let scene = 0; scene < SCENE_COUNT; scene++) {
       const command = CommandSchema.parse({ type: 'scene', scene });
       const state = applyEvent(initialState('test'), event(scene + 1, 100, command));
@@ -30,7 +33,7 @@ describe('shared contract', () => {
       expect(CommandSchema.parse({ type: 'drop', targetScene: scene }).type).toBe('drop');
       expect(TelemetrySchema.parse({ rtt: 1, offset: 0, locked: true, fps: 60, scene, calibrated: false, xr: false, quality: 'low' }).scene).toBe(scene);
     }
-    for (const scene of [-1, 15, 1.5]) {
+    for (const scene of [-1, 30, 1.5]) {
       expect(CommandSchema.safeParse({ type: 'scene', scene }).success).toBe(false);
       expect(CommandSchema.safeParse({ type: 'drop', targetScene: scene }).success).toBe(false);
       expect(ShowStateSchema.safeParse({ ...initialState('test'), scene }).success).toBe(false);
@@ -41,6 +44,7 @@ describe('shared contract', () => {
     expect(PRESET_PARAMETERS).toHaveLength(SCENE_COUNT);
     expect(new Set(SCENES).size).toBe(SCENE_COUNT);
     expect(MIDI_SCENE_SHORTCUT_COUNT).toBe(8);
+    expect(SCENE_GROUPS.map(group => group.id)).toEqual(['signal', 'organic', 'structure', 'echo', 'laser', 'uncharted']);
     for (const group of SCENE_GROUPS) expect(SCENE_CATALOG.filter(scene => scene.group === group.id)).toHaveLength(5);
     for (let i = 0; i < SCENE_COUNT; i++) {
       expect(SCENE_CATALOG[i].synopsis.length).toBeGreaterThan(20);
@@ -51,6 +55,7 @@ describe('shared contract', () => {
     }
     expect(sceneNumber(9)).toBe('10');
     expect(sceneNumber(14)).toBe('15');
+    expect(sceneNumber(29)).toBe('30');
   });
   it('integrates speed on the authority timeline independently of render steps', () => {
     let state = applyEvent(initialState('test'), event(1, 1000, { type: 'start' }));
