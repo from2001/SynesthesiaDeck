@@ -26,6 +26,7 @@ export class Authority {
   private lastAudioAt = -Infinity;
   private lastNativeAt = -Infinity;
   private lastAudioTimestamp = -Infinity;
+  private nativeCaptureState: SourceStatus['capture'] | null = null;
   private lastDropAt = -Infinity;
   private readonly synthetic: boolean;
   constructor(private options: AuthorityOptions = {}) {
@@ -117,9 +118,13 @@ export class Authority {
   ingest(message: Exclude<NativeMessage, { type: 'midi' }>, now = this.now()): void {
     this.touchNative(now);
     if (message.type === 'source') {
+      this.nativeCaptureState = message.capture;
       this.source = { capture: this.synthetic ? 'synthetic' : message.capture, midi: message.midi,
         detail: this.synthetic ? 'Synthetic 120 BPM test signal; no system audio capture' : message.detail };
-    } else if (!this.synthetic && message.timestamp > this.lastAudioTimestamp) {
+    // Explicit lifecycle failures/stops require a host recovery status. Late frames
+    // must not refresh audio age or turn a failed capture back into a healthy source.
+    } else if (!this.synthetic && this.nativeCaptureState !== 'error' && this.nativeCaptureState !== 'stopped'
+      && message.timestamp > this.lastAudioTimestamp) {
       this.lastAudioTimestamp = message.timestamp;
       this.lastAudioAt = now;
       this.audio = { timestamp: message.timestamp, audio: { ...message.audio }, source: message.source };

@@ -4,7 +4,7 @@ The Mac remains the show controller. The headset opens the audience page, enters
 
 ## Fixed HTTPS URL over Wi-Fi
 
-Use the [Vercel frontend and Mac tunnel guide](deployment.md) for the configured wireless preview. Keep its Mac runner active, open [the fixed audience page](https://nanokon-sync-mixed-reality.vercel.app/?view=hmd) in Quest Browser, and use [the fixed desk](https://nanokon-sync-mixed-reality.vercel.app) on the Mac. Authenticate only the desk and press **Play**. On the headset, choose **Low**, enter MR, and follow the A/B alignment steps below. This route needs Internet access but no headset USB connection.
+Use the [Vercel frontend and Mac tunnel guide](deployment.md) for the configured wireless preview. Keep its Mac runner active, open [the fixed audience page](https://nanokon-sync-mixed-reality.vercel.app/?view=hmd) in Quest Browser, and use [the fixed desk](https://nanokon-sync-mixed-reality.vercel.app) on the Mac. Authenticate only the desk and press **Play**. On the headset, choose **Low**, enter MR, and use the Quest system button long-press to recenter. Two-point floor alignment is temporarily disabled. This route needs Internet access but no headset USB connection.
 
 If the Mac runner reports a changed public endpoint, use its freshly printed audience link or update **Show connection → Mac show URL**. A deployed page remains available when the Mac is offline, but live show synchronization requires the authority and tunnel to be running.
 
@@ -37,7 +37,7 @@ Meta documents ADB reverse port forwarding for loading a local development serve
 
 5. On the headset page, start with **Quality → Low**, then click **Enter MR** and accept the browser's immersive-session permission. This requires a Quest Browser version that supports `immersive-ar` and `local-floor`; the page reports unsupported sessions instead of silently substituting another mode.
 
-6. Follow the in-headset alignment prompts. Point a controller ray at floor origin **A** and press the trigger, then select forward point **B** at least 30 cm away. For two headsets, mark the same physical A and B and repeat on each device. **Align room** repeats the process; **Reset alignment** clears it.
+6. Use the Quest system button long-press to recenter. For two headsets, stand at the same physical position facing the same direction when recentering each device. Two-point floor alignment, its page buttons, and grip-triggered alignment are temporarily disabled. MR entry and reference-space resets no longer open floor-selection prompts. This uses each headset's local floor space; verify the resulting physical alignment visually.
 
 7. Leave the headset in MR and use the Mac's **Preview scene** dropdown or **Previous / Next** buttons to browse all 15 scenes. Presets 06–15 are the ten additions. The larger scene cards and the MIDI controller also select scenes: S1–S8 select 01–08, while REW/FF wrap through all 15. **Clear** hides the content; **Play** resumes it. **DROP** can transition to the selected destination.
 
@@ -53,10 +53,10 @@ Use a trusted HTTPS/WSS endpoint following [server and TLS setup](server.md#secu
 
 ## What to check
 
-- Inspect every scene in both eyes: transparent empty space, Bloom halos, visible surfaces, depth, and comfortable scale. Mercury's reflections are procedural lighting, not a reflection of the physical room.
+- Inspect every scene in both eyes: transparent empty space, Bloom halos, visible surfaces, depth, and comfortable scale. Lumen Garden and Resonant Chimes use unlit colored surfaces that remain visible without environment lighting. Check the jellyfish's thick tendrils and the one-meter downward placement correction for Abyssal Bloom and Ember Migration.
 - Move and turn while trying Low first. Raise quality only after checking sustained frame timing on the actual headset. Desktop FPS and geometry budgets are not headset performance measurements.
 - Exercise scene changes, eight scene knobs, Density/Glow, DROP, Clear/Play, and reconnection. Check that the Mac's scene and seed match the audience.
-- For two devices, verify the same A/B alignment and a third physical point, then measure presentation skew and network stability. A matching scene name alone does not prove synchronized display timing.
+- For two devices, recenter from the same position and direction and visually compare a third physical point, then measure presentation skew and network stability. A matching scene name alone does not prove synchronized display timing.
 
 If the page does not load, check the selected serial, USB authorization, exact reverse mapping, running Mac server, and port. If the page loads but remains disconnected, inspect its connection status and server log. If it connects but stays empty, click Play on the authenticated Mac desk. If Enter MR is unavailable, check the browser support message and use the exact loopback or trusted HTTPS URL; do not treat a certificate-warning bypass as a working secure setup.
 

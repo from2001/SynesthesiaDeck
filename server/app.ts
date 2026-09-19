@@ -21,7 +21,7 @@ export interface ServerOptions {
 }
 interface Peer {
   ws: WebSocket; info: ClientInfo; hello: boolean; alive: boolean;
-  connectedAt: number; budget: number; budgetAt: number;
+  connectedAt: number; budget: number; budgetAt: number; helloTimer: ReturnType<typeof setTimeout> | null;
 }
 interface Ack { eventId: string; effectiveAt: number; at: number; command: string }
 const LOOPBACK = new Set(['localhost', '127.0.0.1', '::1', '[::1]']);
@@ -141,7 +141,7 @@ export async function startServer(options: ServerOptions) {
     let pathname: string;
     try { pathname = decodeURIComponent(url.pathname); } catch { json(res, 400, { error: 'Malformed path' }); return; }
     if (pathname.split('/').some(part => part.startsWith('.') && part.length > 0)) { json(res, 404, { error: 'Not found' }); return; }
-    const mapped = pathname === '/' || pathname === '/dashboard' || pathname === '/hmd' ? 'index.html' : pathname.slice(1);
+    const mapped = pathname === '/' || pathname === '/dashboard' || pathname === '/hmd' || pathname === '/preview' ? 'index.html' : pathname.slice(1);
     const file = resolve(dist, mapped);
     if (!file.startsWith(`${dist}${sep}`)) { json(res, 403, { error: 'Forbidden path' }); return; }
     try {
@@ -168,11 +168,12 @@ export async function startServer(options: ServerOptions) {
   wss.on('connection', ws => {
     const now = authority.now();
     const peer: Peer = { ws, hello: false, alive: true, connectedAt: now, budget: 120, budgetAt: now,
-      info: { id: randomUUID(), name: 'Unauthenticated', role: 'hmd', lastSeen: now, telemetry: null } };
+      info: { id: randomUUID(), name: 'Unauthenticated', role: 'hmd', lastSeen: now, telemetry: null }, helloTimer: null };
+    peer.helloTimer = setTimeout(() => { if (!peer.hello) ws.terminate(); }, options.helloTimeoutMs ?? 5000);
     peers.set(ws, peer);
     ws.on('error', () => ws.terminate());
+    ws.on('close', () => { if (peer.helloTimer) clearTimeout(peer.helloTimer); peers.delete(ws); publishClients(); });
     ws.on('pong', () => { peer.alive = true; peer.info.lastSeen = authority.now(); });
-    ws.on('close', () => { peers.delete(ws); publishClients(); });
     ws.on('message', (data, binary) => {
       const now = authority.now();
       peer.budget = Math.min(120, peer.budget + (now - peer.budgetAt) * .12);
@@ -185,6 +186,7 @@ export async function startServer(options: ServerOptions) {
       if (!parsed.success) { error(peer, 'Message does not match protocol v1'); return; }
       const message = parsed.data;
       if (message.type === 'hello') {
+        if (peer.helloTimer) { clearTimeout(peer.helloTimer); peer.helloTimer = null; }
         if (peer.hello) { error(peer, 'Connection is already initialized'); return; }
         if (message.role === 'dashboard' && !authorize(`Bearer ${message.token ?? ''}`, options.controlToken)) {
           error(peer, 'Dashboard token is invalid'); ws.close(1008, 'Unauthorized'); return;
@@ -281,15 +283,18 @@ export async function startServer(options: ServerOptions) {
     if (wasMidiConnected && authority.source.midi === 'disconnected') midi.reset();
     broadcast({ version: VERSION, type: 'frame', timestamp: now, state: authority.state, audioFrame, source: authority.source });
     if (now - publishedClientsAt > 1000) publishClients();
-    for (const peer of peers.values()) if (!peer.hello && now - peer.connectedAt > (options.helloTimeoutMs ?? 5000)) peer.ws.terminate();
   }, 1000 / FRAME_HZ);
   const heartbeatTimer = setInterval(() => {
+    const now = authority.now();
     for (const peer of peers.values()) {
+      if (!peer.hello && now - peer.connectedAt > (options.helloTimeoutMs ?? 5000)) {
+        peer.ws.terminate();
+        continue;
+      }
       if (!peer.alive) { peer.ws.terminate(); continue; }
       peer.alive = false;
       if (peer.ws.readyState === WebSocket.OPEN) peer.ws.ping();
     }
-    const now = authority.now();
     for (const [key, value] of acknowledgments) if (now - value.at > 300000) acknowledgments.delete(key);
   }, options.heartbeatMs ?? 15000);
   return {

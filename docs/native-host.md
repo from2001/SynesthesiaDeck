@@ -50,7 +50,7 @@ The analyzer uses a 2,048-sample Hann FFT (42.67 ms at 48 kHz), a 1,600-sample h
 | high | 2,000–16,000 Hz, limited by Nyquist |
 | level | Full-band time-domain RMS |
 
-Attack and release use exponential envelopes with default time constants of 35 ms and 220 ms. `--attack`, `--release`, and `--noise-floor` adjust these settings. Silence decays toward zero. A watchdog supplies local zero samples if capture callbacks stop arriving, and an input time discontinuity or sample-rate change resets the analyzer. Callback retention is bounded to eight PCM blocks of at most 16,384 samples, with overflow dropped instead of blocking capture.
+Attack and release use exponential envelopes with default time constants of 35 ms and 220 ms. `--attack`, `--release`, and `--noise-floor` adjust these settings. Valid silent PCM decays toward zero. A capture watchdog reports an actionable error if no first valid buffer arrives within three seconds or buffer delivery subsequently stops for one second; it checks every 100 ms. The failure stays latched until a new capture attempt, and the host uses its existing five-second retry interval. Resume playback and check the selected display/audio output if an idle source delivers no buffers. No replacement PCM is synthesized: the server decays the last real features to silence and preserves an explicit capture error/stopped status until the host reports recovery. An input time discontinuity or sample-rate change resets the analyzer. Callback retention is bounded to eight PCM blocks of at most 16,384 samples, with overflow dropped instead of blocking capture.
 
 Beat uses positive RMS onset change, a rolling threshold, and a 220 ms refractory interval. Median inter-onset intervals in the 0.25–1.5-second range estimate BPM; at least three agreeing intervals are required. Confidence reflects interval agreement and sample count. The pulse decays over 90 ms; phase wraps in `[0,1)`. Missing onsets lower confidence after two seconds and clear BPM after three seconds. This is a basic music meter, not a guaranteed beat tracker: syncopation, sustained pads, tempo changes, and half/double tempo ambiguity can reduce accuracy. Human DROP commands are independent.
 
@@ -94,6 +94,8 @@ The supplied profile is a documented target configuration for CC mode. Confirm t
 | Rewind / Forward / Stop / Play / Record | 43 / 44 / 42 / 41 / 45 | Momentary |
 | Cycle / Previous track / Next track | 46 / 58 / 59 | Momentary |
 | Set marker / Previous marker / Next marker | 60 / 61 / 62 | Momentary |
+
+Cycle, Previous track, Next track, Set marker, Previous marker, and Next marker are **unavailable as show controls** in the current design. The native profile recognizes and monitors these six inputs, but the show-command mapper intentionally assigns no action to them. Their use does not change scenes, transport, or effects.
 
 Canonical output uses MIDI channel 1 and 0–127 values. The default profile is in `native/fixtures/nanokontrol2-cc.json`. Each control defines `name`, one-based `channel`, `kind` (`cc` or `note`), `number`, `minimum`, `maximum`, and `behavior` (`continuous`, `momentary`, or `toggle`). Keep canonical names unchanged when customizing hardware numbers. Unrecognized controls are ignored and shown in `--monitor` mode. Custom input ranges are normalized and remapped to canonical channel-1 CC values, so the server can keep its standard profile. Inverted ranges are supported. Note Off and velocity-zero Note On map to release.
 

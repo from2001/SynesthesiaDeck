@@ -8,12 +8,12 @@ export const SCENE_CATALOG = [
   { name: 'TIDAL SILK', group: 'organic', synopsis: 'Broad silk ribbons fold into a breathing tidal curtain.' },
   { name: 'MYCELIUM CHOIR', group: 'organic', synopsis: 'Branching colonies sway beneath a drifting spore canopy.' },
   { name: 'ABYSSAL BLOOM', group: 'organic', synopsis: 'Translucent bells pulse above curling deep-sea tendrils.' },
-  { name: 'LIQUID MERCURY', group: 'organic', synopsis: 'A metallic fluid surface gathers into rippling lobes.' },
+  { name: 'LUMEN GARDEN', group: 'organic', synopsis: 'Luminous cupped petals open into a floating flower garden.' },
   { name: 'EMBER MIGRATION', group: 'organic', synopsis: 'Winged ember silhouettes bank and gather into a flock.' },
   { name: 'ORIGAMI ENGINE', group: 'structure', synopsis: 'Folded facets open into a rhythmic paper mechanism.' },
   { name: 'MOIRE OBSERVATORY', group: 'structure', synopsis: 'Layered lattices drift through optical interference.' },
   { name: 'IMPOSSIBLE LOOM', group: 'structure', synopsis: 'Thick threads interlace into a shifting sculptural knot.' },
-  { name: 'GRAVITY PALIMPSEST', group: 'structure', synopsis: 'Eroded blocks float through layers of impossible arches.' },
+  { name: 'RESONANT CHIMES', group: 'structure', synopsis: 'Prismatic chimes swing through traveling waves of light.' },
   { name: 'PRISMATIC PORTAL', group: 'structure', synopsis: 'Nested polygonal apertures twist into a spectral tunnel.' },
 ] as const;
 

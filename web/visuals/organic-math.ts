@@ -5,7 +5,7 @@ export interface OrganicSample extends Point3 { hue: number; glow: number }
 export interface BranchSample extends OrganicSample { startX: number; startY: number; startZ: number; radius: number; depth: number }
 export interface BirdSample extends OrganicSample { heading: number; bank: number; flap: number; span: number }
 export const TAU = Math.PI * 2;
-const ORGANIC_HUES = [.43, .23, .58, .58, .065] as const;
+const ORGANIC_HUES = [.43, .23, .58, .88, .065] as const;
 const wrap = (value: number) => ((value % 1) + 1) % 1;
 const fresh = (): OrganicSample => ({ x: 0, y: 0, z: 0, hue: 0, glow: 1 });
 
@@ -137,28 +137,28 @@ export function sampleTendril(frame: VisualFrame, jelly: number, tendril: number
   return out;
 }
 
-/** Radial fluid harmonics produce one closed, normal-shaded surface. */
-export function sampleMercury(frame: VisualFrame, droplet: number, u: number, v: number, out = fresh()): OrganicSample {
+/** Broad cupped petals form layered flowers, with color that needs no environment lighting. */
+export function samplePetal(frame: VisualFrame, petal: number, u: number, v: number, out = fresh()): OrganicSample {
   const p = frame.state.sceneParams, t = frame.phase;
-  const a = seeded(frame.state.seed, droplet + 610), azimuth = u * TAU, polar = v * Math.PI;
-  const lobes = 2 + Math.floor(p[6] * 6), belt = Math.sin(polar);
-  const radius = (1.25 + p[0] * 1.35) * (droplet === 0 ? 1 : .08 + a * .075);
-  const viscosity = .16 + (1 - p[4]) * .75;
-  const swell = Math.sin(azimuth * lobes + t * viscosity + a * TAU) * belt * belt;
-  const ripples = Math.sin(polar * (4 + p[3] * 14) - t * viscosity * 1.8 + a) * belt;
-  const r = radius * (1 + swell * (.055 + p[2] * .15) + ripples * p[2] * .055 + frame.audio.bass * .035);
-  out.x = Math.cos(azimuth) * belt * r;
-  out.y = Math.cos(polar) * r * .82 + (1.25 + p[0] * 1.35) * .9 + .3 + p[1] * 1.4;
-  out.z = Math.sin(azimuth) * belt * r;
-  if (droplet > 0) {
-    const theta = droplet * 2.399963 + t * (.1 + a * .04), orbit = 1.9 + p[0] * 1.65;
-    out.x += Math.cos(theta) * orbit;
-    out.z += Math.sin(theta) * orbit;
-    out.y += Math.sin(theta * 2 + a) * (.3 + p[1] * .6);
-  }
-  out.hue = organicHue(frame, 8, droplet, belt * .025);
-  out.glow = .4 + p[7] * 1.6;
-  deformOrganic(frame, droplet + 601, out);
+  const flower = Math.floor(petal / 16), layer = Math.floor(petal % 16 / 8), blade = petal % 8;
+  const a = seeded(frame.state.seed, flower + 610);
+  const centerAngle = flower * 2.399963 + a, spread = flower === 0 ? 0 : (1.2 + p[0] * 1.8) * Math.sqrt(flower);
+  const angle = blade / 8 * TAU + layer * Math.PI / 8 + a + Math.sin(t * .25 + flower) * p[4] * .15;
+  const opening = .55 + p[6] * .65 + Math.sin(t * (.4 + p[4]) + flower) * .08 + frame.audio.bass * .08;
+  const length = (.65 + p[2] * 1.15) * (layer ? .65 : 1);
+  const radial = .09 + u * length * opening;
+  const width = Math.sin(u * Math.PI) * length * (.24 + p[3] * .26) * (v - .5) * 2;
+  const x = Math.cos(angle) * radial - Math.sin(angle) * width;
+  const z = Math.sin(angle) * radial + Math.cos(angle) * width;
+  const cup = layer * .14 + length * (u * u * (.65 - opening * .4) + Math.sin(u * Math.PI) * .16 + (v - .5) ** 2 * .65);
+  // Tilt the flower toward an eye-height viewer so the petals do not collapse into an edge-on disc.
+  const tilt = .65 + a * .3;
+  out.x = Math.cos(centerAngle) * spread + x;
+  out.z = Math.sin(centerAngle) * spread + z * Math.cos(tilt) + cup * Math.sin(tilt);
+  out.y = 1.1 + p[1] * 1.5 + (a - .5) * .5 - z * Math.sin(tilt) + cup * Math.cos(tilt);
+  out.hue = organicHue(frame, 8, flower, u * .16 + layer * .045);
+  out.glow = (.25 + u * .7) * (.75 + Math.cos(v * Math.PI) ** 2 * .25) * (1 + p[7] * .4 + frame.audio.high * .2);
+  deformOrganic(frame, flower + 601, out);
   return out;
 }
 

@@ -8,6 +8,8 @@ import { floorIntersection, particleIdentity, sampleParticle, solveCalibration, 
 import { QUALITY_BUDGETS, visibleCount, type Quality } from './parameters';
 import { OrganicPresets } from './organic-presets';
 import { ArchitecturalPresets } from './architectural-presets';
+import { endActiveMRSession } from './xr-session';
+import { FLOOR_ALIGNMENT_ENABLED } from './alignment-settings';
 
 const MAX_PARTICLES = QUALITY_BUDGETS.high.particles;
 const MAX_INSTANCES = QUALITY_BUDGETS.high.instances;
@@ -15,10 +17,17 @@ const BACKGROUND = new THREE.Color('#03070d');
 const GLYPHS = '01{}[]<>=+-*/:;()#%$&_|. ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmno';
 const WHITE = new THREE.Color('#dfffff');
 
+export interface DesktopCameraPose {
+  position: readonly [number, number, number];
+  target: readonly [number, number, number];
+  fov: number;
+}
+
 /** The same RenderPipeline is used for desktop and immersive AR, including Bloom. */
 export class ShowRenderer {
   onStatus?: (message: string) => void;
   sampleProvider?: () => { state: ShowState; audio: AudioFeatures; now: number } | null;
+  desktopCameraProvider?: () => DesktopCameraPose;
   private renderer!: THREE.WebGPURenderer;
   private pipeline!: THREE.RenderPipeline;
   private scenePass!: ReturnType<typeof pass>;
@@ -132,6 +141,7 @@ export class ShowRenderer {
     this.orbit.maxPolarAngle = Math.PI * .49;
     this.orbit.enableDamping = true;
     this.orbit.update();
+    this.orbit.enabled = !this.desktopCameraProvider;
     this.scene.add(this.root);
     this.root.add(this.content);
     this.createGeometry();
@@ -194,10 +204,13 @@ export class ShowRenderer {
     } finally { this.xrStarting = false; }
   }
 
-  async exitMR(): Promise<void> { if (this.session) await this.session.end(); }
+  async exitMR(): Promise<void> {
+    if (!this.renderer) return;
+    await endActiveMRSession(this.renderer.xr, this.session, message => this.report(message));
+  }
 
   beginCalibration(): void {
-    if (!this.initialized) return;
+    if (!FLOOR_ALIGNMENT_ENABLED || !this.initialized) return;
     this.calibrationStep = 'origin'; this.calibrationA = null;
     this.calibrationMarkers.visible = true;
     this.originMarker.visible = false; this.forwardMarker.visible = false;
@@ -212,7 +225,9 @@ export class ShowRenderer {
     this.root.position.set(0, 0, this.session ? -3 : 0);
     this.root.rotation.set(0, 0, 0);
     if (this.orbit) this.orbit.enabled = !this.session;
-    this.report('Alignment cleared. Set the same two floor markers on each headset to align the show.');
+    this.report(FLOOR_ALIGNMENT_ENABLED
+      ? 'Alignment cleared. Set the same two floor markers on each headset to align the show.'
+      : 'Use the Quest system button long-press to recenter. Two-point floor alignment is temporarily disabled.');
   }
 
   dispose(): void {
@@ -407,6 +422,8 @@ export class ShowRenderer {
     const pulse = (state.toggles[1] ? audio.beat * fx * .12 : 0) + effects.oneShots[1] * .16;
     const scale = (.55 + state.controls.scale * .9) * (1 + pulse + audio.bass * (scene === 0 ? .055 : .015));
     this.content.scale.setScalar(scale * effects.contraction);
+    // Apply the headset placement correction in floor meters, outside scale and DROP contraction.
+    this.content.position.y = scene === 7 || scene === 9 ? -1 : 0;
     this.content.rotation.y = (state.toggles[0] ? phase * .15 * fx : 0) + effects.oneShots[0] * Math.PI * .5;
     // Experimental scenes own their geometry, while all fifteen share show transforms and Bloom.
     this.organic.update(frame, this.quality, gain);
@@ -539,7 +556,15 @@ export class ShowRenderer {
     const time = this.latestServerTime + Math.min(150, Math.max(0, now - this.receivedAt));
     try {
       this.renderVisual(visualFrame(this.latestState, this.latestAudio, time));
-      if (!this.session) this.orbit.update();
+      if (!this.session) {
+        const pose = this.desktopCameraProvider?.();
+        if (pose) {
+          this.orbit.enabled = false;
+          this.camera.position.set(...pose.position);
+          this.camera.lookAt(...pose.target);
+          if (this.camera.fov !== pose.fov) { this.camera.fov = pose.fov; this.camera.updateProjectionMatrix(); }
+        } else this.orbit.update();
+      }
       this.updateCalibrationCursor();
       this.pipeline.render();
     }

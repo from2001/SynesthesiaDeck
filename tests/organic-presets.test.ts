@@ -3,7 +3,7 @@ import * as THREE from 'three/webgpu';
 import { initialState, SILENCE } from '../shared/protocol';
 import { visualFrame, type VisualFrame } from '../web/visuals/math';
 import { OrganicPresets } from '../web/visuals/organic-presets';
-import { organicHue, sampleBell, sampleBird, sampleBranch, sampleMercury, sampleSilk, sampleSpore, sampleTendril,
+import { organicHue, sampleBell, sampleBird, sampleBranch, samplePetal, sampleSilk, sampleSpore, sampleTendril,
   type BirdSample, type BranchSample } from '../web/visuals/organic-math';
 
 const branch = (): BranchSample => ({ x: 0, y: 0, z: 0, startX: 0, startY: 0, startZ: 0, radius: 0, depth: 0, hue: 0, glow: 0 });
@@ -17,7 +17,7 @@ function fingerprint(input: VisualFrame): number[] {
   if (scene === 5) return Object.values(sampleSilk(input, 2, .37, .82));
   if (scene === 6) return [...Object.values(sampleBranch(input, 2, 44, branch())), ...Object.values(sampleSpore(input, 11))];
   if (scene === 7) return [...Object.values(sampleBell(input, 2, .37, .82)), ...Object.values(sampleTendril(input, 2, 7, .68))];
-  if (scene === 8) return Object.values(sampleMercury(input, 0, .37, .31));
+  if (scene === 8) return [...Object.values(samplePetal(input, 0, .37, .31)), ...Object.values(samplePetal(input, 16, .37, .31))];
   return Object.values(sampleBird(input, 37, bird()));
 }
 
@@ -81,37 +81,52 @@ describe('organic surface and skeleton continuity', () => {
     }
   });
 
-  it('closes the jellyfish and mercury azimuth seams without cracks', () => {
+  it('closes the jellyfish azimuth seam without cracks', () => {
     for (const v of [0, .2, .7, 1]) {
       const bellA = sampleBell(frame(7), 1, 0, v), bellB = sampleBell(frame(7), 1, 1, v);
-      const metalA = sampleMercury(frame(8), 0, 0, v), metalB = sampleMercury(frame(8), 0, 1, v);
       for (const axis of ['x', 'y', 'z'] as const) {
         expect(bellA[axis]).toBeCloseTo(bellB[axis], 10);
-        expect(metalA[axis]).toBeCloseTo(metalB[axis], 10);
       }
     }
   });
 
-  it('welds chrome normals at the periodic seam and both pole duplicates', () => {
-    const bank = new OrganicPresets();
+  it('renders the replacement garden with colored unlit surfaces even in silence and without glow effects', () => {
+    const bank = new OrganicPresets(), input = frame(8);
+    input.audio = { ...SILENCE }; input.state.controls.glow = 0; input.state.controls.density = 1;
     for (const quality of ['low', 'medium', 'high'] as const) {
-      bank.update(frame(8), quality, 1);
-      const metallic = bank.group.children[3].children.find(object => object.visible && object instanceof THREE.Mesh && !(object instanceof THREE.InstancedMesh)) as THREE.Mesh;
-      const normal = metallic.geometry.getAttribute('normal');
-      const u = quality === 'low' ? 40 : quality === 'medium' ? 80 : 112;
-      const v = quality === 'low' ? 20 : quality === 'medium' ? 40 : 56;
-      for (let row = 0; row <= v; row++) {
-        const a = row * (u + 1), b = a + u;
-        expect(normal.getX(a)).toBeCloseTo(normal.getX(b), 6);
-        expect(normal.getY(a)).toBeCloseTo(normal.getY(b), 6);
-        expect(normal.getZ(a)).toBeCloseTo(normal.getZ(b), 6);
+      bank.update(input, quality, 1);
+      const meshes = bank.group.children[3].children.filter(object => object.visible) as THREE.Mesh[];
+      expect(meshes).toHaveLength(1);
+      const garden = meshes[0], material = garden.material as THREE.MeshBasicNodeMaterial;
+      expect(material.isMeshBasicNodeMaterial).toBe(true);
+      expect(material.transparent).toBe(false);
+      expect(garden.geometry.drawRange.count).toBeGreaterThan(0);
+      expect(Array.from(garden.geometry.getAttribute('color').array).some(value => value > .4)).toBe(true);
+    }
+    bank.update(input, 'low', 0); expect(bank.group.visible).toBe(false);
+  });
+
+  it('gives jellyfish tendrils a closed, tapered volume in every quality without reallocating geometry', () => {
+    const bank = new OrganicPresets(), input = frame(7);
+    input.state.sceneParams[3] = 1; input.state.controls.density = 1;
+    const resources = bank.group.children[2].children.map(object => (object as THREE.Mesh).geometry);
+    for (const quality of ['high', 'low', 'medium', 'high'] as const) {
+      bank.update(input, quality, 1);
+      const tubes = bank.group.children[2].children.find(object => object.visible && object.name === 'Volumetric jellyfish tendrils') as THREE.Mesh;
+      expect(tubes).toBeInstanceOf(THREE.Mesh);
+      const geometry = tubes.geometry, positions = geometry.getAttribute('position');
+      const used = new Set(Array.from(geometry.index!.array).slice(0, geometry.drawRange.count));
+      const rings = (quality === 'low' ? 12 : quality === 'medium' ? 16 : 24) + 1;
+      const verticesPerTube = rings * 7;
+      const distance = (a: number, b: number) => Math.hypot(positions.getX(a) - positions.getX(b), positions.getY(a) - positions.getY(b), positions.getZ(a) - positions.getZ(b));
+      for (let base = 0; base < used.size; base += verticesPerTube) {
+        const tip = base + verticesPerTube - 7;
+        expect(distance(base, base + 3)).toBeGreaterThan(.04);
+        expect(distance(tip, tip + 3)).toBeGreaterThan(.008);
+        expect(distance(tip, tip + 3)).toBeLessThan(distance(base, base + 3));
+        for (let ring = base; ring < base + verticesPerTube; ring += 7) expect(distance(ring, ring + 6)).toBeLessThan(1e-6);
       }
-      for (const row of [0, v]) for (let column = 1; column <= u; column++) {
-        const a = row * (u + 1), b = a + column;
-        expect(normal.getX(a)).toBeCloseTo(normal.getX(b), 6);
-        expect(normal.getY(a)).toBeCloseTo(normal.getY(b), 6);
-        expect(normal.getZ(a)).toBeCloseTo(normal.getZ(b), 6);
-      }
+      expect(bank.group.children[2].children.map(object => (object as THREE.Mesh).geometry)).toEqual(resources);
     }
   });
 
@@ -128,7 +143,7 @@ describe('organic surface and skeleton continuity', () => {
   it('keeps the medium quality geometry budget below 15000 active vertices per scene', () => {
     const bank = new OrganicPresets();
     for (let scene = 5; scene <= 9; scene++) {
-      const input = frame(scene); input.state.controls.density = 1; bank.update(input, 'medium', 1);
+      const input = frame(scene); input.state.controls.density = 1; input.state.sceneParams[3] = 1; bank.update(input, 'medium', 1);
       let vertices = 0, calls = 0;
       bank.group.traverseVisible(object => {
         const renderable = object as THREE.Mesh;

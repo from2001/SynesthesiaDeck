@@ -129,6 +129,53 @@ describe('show authority', () => {
     setTime(9000); authority.audioFrame();
     expect(authority.source.midi).toBe('disconnected');
   });
+  it('preserves a capture error and decays old audio until the host reports recovery', () => {
+    const { authority, setTime } = setup();
+    authority.ingest({ version: 1, type: 'source', capture: 'running', midi: 'connected', detail: 'Real system capture' });
+    authority.ingest({ version: 1, type: 'audio', timestamp: 100, source: 'system', audio: { ...SILENCE, level: 1 } });
+    setTime(200);
+    authority.ingest({ version: 1, type: 'source', capture: 'error', midi: 'connected', detail: 'Capture callback stalled' });
+    setTime(600);
+    authority.ingest({ version: 1, type: 'audio', timestamp: 600, source: 'system', audio: { ...SILENCE, level: 1 } });
+    expect(authority.audioFrame().audio.level).toBeLessThan(.4);
+    expect(authority.source.capture).toBe('error');
+    expect(authority.source.detail).toBe('Capture callback stalled');
+    setTime(1800);
+    authority.ingest({ version: 1, type: 'audio', timestamp: 1800, source: 'system', audio: { ...SILENCE, level: 1 } });
+    expect(authority.audioFrame().source).toBe('silent');
+    expect(authority.audioFrame().audio.level).toBe(0);
+    expect(authority.source.capture).toBe('error');
+    setTime(1900);
+    authority.ingest({ version: 1, type: 'source', capture: 'running', midi: 'connected', detail: 'Capture restarted' });
+    authority.ingest({ version: 1, type: 'audio', timestamp: 1900, source: 'system', audio: { ...SILENCE, level: .6 } });
+    expect(authority.source.capture).toBe('running');
+    expect(authority.source.detail).toBe('Capture restarted');
+    expect(authority.audioFrame().source).toBe('system');
+    expect(authority.audioFrame().audio.level).toBe(.6);
+  });
+  it('does not let late system or synthetic frames override an explicit capture stop', () => {
+    const { authority, setTime } = setup();
+    authority.ingest({ version: 1, type: 'source', capture: 'stopped', midi: 'connected', detail: 'Operator stopped capture' });
+    setTime(200);
+    for (const source of ['system', 'synthetic'] as const) {
+      authority.ingest({ version: 1, type: 'audio', timestamp: 200, source, audio: { ...SILENCE, level: 1 } });
+      expect(authority.source.capture).toBe('stopped');
+      expect(authority.source.detail).toBe('Operator stopped capture');
+      expect(authority.audioFrame().source).toBe('silent');
+    }
+  });
+  it('allows fresh real audio to recover a delivery timeout while host capture remains running', () => {
+    const { authority, setTime } = setup();
+    authority.ingest({ version: 1, type: 'source', capture: 'running', midi: 'connected', detail: 'Real system capture' });
+    authority.ingest({ version: 1, type: 'audio', timestamp: 100, source: 'system', audio: { ...SILENCE, level: .5 } });
+    setTime(1800);
+    expect(authority.audioFrame().source).toBe('silent');
+    expect(authority.source.capture).toBe('error');
+    authority.ingest({ version: 1, type: 'audio', timestamp: 1800, source: 'system', audio: { ...SILENCE, level: .7 } });
+    expect(authority.source.capture).toBe('running');
+    expect(authority.audioFrame().source).toBe('system');
+    expect(authority.audioFrame().audio.level).toBe(.7);
+  });
 });
 const midiMessage = (data1: number, data2: number, status = 0xb0): Extract<NativeMessage, { type: 'midi' }> => ({ version: 1, type: 'midi', timestamp: 0, status, data1, data2 });
 describe('MIDI mapping', () => {

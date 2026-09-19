@@ -3,35 +3,45 @@ import { CONTROL_KEYS, EFFECT_NAMES, SCENES, SCENE_COUNT, initialState, SILENCE,
 import { MIDI_SCENE_SHORTCUT_COUNT, SCENE_CATALOG, SCENE_GROUPS, sceneNumber } from '../shared/scenes';
 import { ShowConnection } from './connection';
 import { ShowRenderer } from './visuals/renderer';
+import { FLOOR_ALIGNMENT_ENABLED } from './visuals/alignment-settings';
 import { PRESET_PARAMETERS } from './visuals/parameters';
 import { initialShowSelection, persistControlToken, prepareShowSelection, publicShowOrigin, readSetting, showPageLink, type SettingsStore } from './show-settings';
+import { isPreviewPage, previewPageLink } from './preview/settings';
+
+if (isPreviewPage(location)) {
+  void import('./preview/page').then(({ mountAudiencePreview }) => mountAudiencePreview());
+} else {
+  mountInstrument();
+}
+
+function mountInstrument() {
 
 const pageParameters = new URLSearchParams(location.search);
 const hmdMode = pageParameters.get('view') === 'hmd' || (!pageParameters.has('view') && location.pathname === '/hmd');
 const hosted = import.meta.env.VITE_SHOW_MODE === 'hosted';
-if (hmdMode) document.body.classList.add('hmd-mode');
+document.body.classList.add(hmdMode ? 'hmd-mode' : 'desk-mode');
 const app = document.querySelector<HTMLDivElement>('#app')!;
 app.innerHTML = `
-  <header><a class="brand" href="/" aria-label="NanoKon VJ desk"><span class="brand-mark"></span>Nano<em>Kon</em></a><span class="tag">MR VJ INSTRUMENT / 01</span><div class="header-right"><span class="status" id="connection-status">Connecting</span><a href="?view=${hmdMode ? 'desk' : 'hmd'}" class="tag">${hmdMode ? 'VJ desk ↗' : 'Open audience view ↗'}</a></div></header>
+  <header><a class="brand" href="/" aria-label="Synesthesia Deck VJ desk"><span class="brand-mark"></span><span>Synesthesia <em>Deck</em></span></a><span class="tag">MR VJ INSTRUMENT / 01</span><div class="header-right"><span class="status" id="connection-status">Connecting</span><a href="?view=${hmdMode ? 'desk' : 'hmd'}" class="tag">${hmdMode ? 'VJ desk ↗' : 'Open HMD view ↗'}</a><a id="audience-preview-link" href="/preview" class="tag">Audience preview ↗</a></div></header>
   <main class="workspace">
-    <div class="intro"><div><h1>Your room. A shared frequency.</h1><p>Shape the sound. Move the space.</p></div><div class="transport"><button class="play command" id="play">▶ Play</button><button class="command" id="stop">■ Clear</button><button class="command danger" id="reset">Reset</button></div></div>
-    <div id="notice" class="notice" role="status" aria-live="polite"></div>
-    <details id="server-setup" class="server-setup"><summary>Show connection <span id="server-label">Choose your Mac</span></summary><form id="server-form"><label for="server-url">Mac show URL</label><div class="server-fields"><input id="server-url" type="url" autocomplete="off" spellcheck="false" placeholder="https://your-show-address" aria-describedby="server-help"><button type="submit">Connect show</button></div><p id="server-help">Paste the HTTPS show address printed on your Mac. Keep the Mac and its tunnel running.</p></form></details>
+    <div class="intro"><div class="intro-copy"><h1>Performance desk</h1><p>Shape sound into a shared space.</p></div><div class="transport"><button class="play command" id="play">▶ Play</button><button class="command" id="stop">■ Clear</button><button class="command danger" id="reset">Reset</button></div></div>
+    <div class="connection-bar"><div id="notice" class="notice" role="status" aria-live="polite"></div>
+    <details id="server-setup" class="server-setup"><summary>Show connection <span id="server-label">Choose your Mac</span></summary><form id="server-form"><label for="server-url">Mac show URL</label><div class="server-fields"><input id="server-url" type="url" autocomplete="off" spellcheck="false" placeholder="https://your-show-address" aria-describedby="server-help"><button type="submit">Connect show</button></div><p id="server-help">Paste the HTTPS show address printed on your Mac. Keep the Mac and its tunnel running.</p></form></details></div>
     <div class="layout"><div class="main-column">
-      <section class="panel">
+      <section class="panel preview-panel">
         <form id="login" class="login"><input id="token" type="password" autocomplete="off" placeholder="Control token" aria-label="Control token"><button type="submit">Connect desk</button><p id="access-status">Audience preview · enter your control token to perform.</p></form>
         <div class="viewer" id="viewer"><div class="preview-top"><span>LIVE PREVIEW</span><span id="preview-clock">WAITING FOR SHOW</span></div><div class="preview-bottom"><div><div class="scene-caption" id="scene-caption">CODE CATHEDRAL</div><small id="scene-description">A quiet architecture of light and language.</small></div><small id="fps">— FPS</small></div></div>
         <div class="scene-preview-nav" aria-label="Preview scene navigation"><button class="command" id="scene-previous" aria-label="Previous scene">← Previous</button><select class="command" id="preview-scene" aria-label="Preview scene">${SCENE_GROUPS.map(group => `<optgroup label="${group.name}">${SCENE_CATALOG.map((scene, i) => ({ ...scene, i })).filter(scene => scene.group === group.id).map(scene => `<option value="${scene.i}">${sceneNumber(scene.i)} / ${scene.name}</option>`).join('')}</optgroup>`).join('')}</select><button class="command" id="scene-next" aria-label="Next scene">Next →</button></div>
-        <div class="preview-actions"><button id="enter-mr">Enter MR ↗</button><button id="calibrate">Align room</button><button id="reset-calibration">Reset alignment</button><span class="quality"><label for="quality">Quality </label><select id="quality"><option value="low">Low</option><option value="medium" selected>Medium</option><option value="high">High</option></select></span><span id="xr-status" class="tag">DESKTOP PREVIEW</span></div>
+        <div class="preview-actions"><button id="enter-mr">Enter MR ↗</button>${FLOOR_ALIGNMENT_ENABLED ? '<button id="calibrate">Align room</button><button id="reset-calibration">Reset alignment</button>' : ''}<span class="quality"><label for="quality">Quality </label><select id="quality"><option value="low">Low</option><option value="medium" selected>Medium</option><option value="high">High</option></select></span><span id="xr-status" class="tag">DESKTOP PREVIEW</span></div>
       </section>
-      <section class="panel scenes"><div class="panel-head"><h2>Scene bank</h2><span class="tag" id="scene-status">${SCENE_COUNT} PRESETS</span></div><div class="scene-bank">${SCENE_GROUPS.map(group => `<section class="scene-group scene-group-${group.id}" aria-labelledby="group-${group.id}"><div class="scene-group-head"><h3 id="group-${group.id}">${group.name}</h3><span>${group.subtitle}</span></div><div class="scene-list">${SCENE_CATALOG.map((scene, i) => ({ ...scene, i })).filter(scene => scene.group === group.id).map(scene => `<button class="scene-button command" data-scene="${scene.i}" aria-pressed="false" title="${scene.synopsis}"><span class="scene-card-top"><span class="number">${sceneNumber(scene.i)}</span><span class="scene-shortcut">${scene.i < MIDI_SCENE_SHORTCUT_COUNT ? `S${scene.i + 1}` : 'REW / FF'}</span></span><strong>${scene.name}</strong><span class="scene-synopsis">${scene.synopsis}</span></button>`).join('')}</div></section>`).join('')}</div><p class="scene-midi-note">nanoKONTROL2 · S1–S8 select presets 01–08 · REW / FF browse all ${SCENE_COUNT}</p></section>
-      <section class="panel controls"><div class="panel-head"><h2>Shape the space</h2><span class="tag">FADERS 01 — 08</span></div><div class="control-grid">${CONTROL_KEYS.map((key, i) => `<div class="fader"><label for="control-${key}">${key === 'masterFX' ? 'Master FX' : key[0].toUpperCase() + key.slice(1)}</label><input class="command" id="control-${key}" data-control="${key}" type="range" min="0" max="1" step="0.01" value="0.5" aria-label="${key}"><output id="value-${key}">50</output></div>`).join('')}</div></section>
-      <section class="panel controls"><div class="panel-head"><h2>Scene expression</h2><span class="tag">KNOBS + EFFECTS</span></div><div class="knobs">${Array.from({ length: 8 }, (_, i) => `<div class="knob"><label for="knob-${i}"><span id="knob-name-${i}">Parameter ${i + 1}</span><output id="knob-value-${i}">50</output></label><input class="command" id="knob-${i}" data-knob="${i}" type="range" min="0" max="1" step="0.01" value="0.5"></div>`).join('')}</div><div class="effect-grid">${EFFECT_NAMES.map((name, i) => `<div class="effect-cell"><button class="command" data-burst="${i}" title="M${i + 1} one-shot">${name} ↗</button><button class="command" data-toggle="${i}" aria-pressed="false" title="R${i + 1} toggle">R${i + 1} · Off</button></div>`).join('')}</div></section>
+      <details class="panel scenes" id="scene-bank"><summary class="panel-head"><h2>Scene bank</h2><span class="tag" id="scene-status">${SCENE_COUNT} PRESETS</span></summary><div class="scene-bank">${SCENE_GROUPS.map(group => `<section class="scene-group scene-group-${group.id}" aria-labelledby="group-${group.id}"><div class="scene-group-head"><h3 id="group-${group.id}">${group.name}</h3><span>${group.subtitle}</span></div><div class="scene-list">${SCENE_CATALOG.map((scene, i) => ({ ...scene, i })).filter(scene => scene.group === group.id).map(scene => `<button class="scene-button command" data-scene="${scene.i}" aria-pressed="false" title="${scene.synopsis}"><span class="scene-card-top"><span class="number">${sceneNumber(scene.i)}</span><span class="scene-shortcut">${scene.i < MIDI_SCENE_SHORTCUT_COUNT ? `S${scene.i + 1}` : 'REW / FF'}</span></span><strong>${scene.name}</strong><span class="scene-synopsis">${scene.synopsis}</span></button>`).join('')}</div></section>`).join('')}</div><p class="scene-midi-note">nanoKONTROL2 · S1–S8 select presets 01–08 · REW / FF browse all ${SCENE_COUNT}</p></details>
+      <section class="panel controls faders-panel"><div class="panel-head"><h2>Shape the space</h2><span class="tag">FADERS 01 — 08</span></div><div class="control-grid">${CONTROL_KEYS.map((key, i) => `<div class="fader"><label for="control-${key}">${key === 'masterFX' ? 'Master FX' : key[0].toUpperCase() + key.slice(1)}</label><input class="command" id="control-${key}" data-control="${key}" type="range" min="0" max="1" step="0.01" value="0.5" aria-label="${key}"><output id="value-${key}">50</output></div>`).join('')}</div></section>
+      <section class="panel controls expression-panel"><div class="panel-head"><h2>Scene expression</h2><span class="tag">KNOBS + EFFECTS</span></div><div class="knobs">${Array.from({ length: 8 }, (_, i) => `<div class="knob"><label for="knob-${i}"><span id="knob-name-${i}">Parameter ${i + 1}</span><output id="knob-value-${i}">50</output></label><input class="command" id="knob-${i}" data-knob="${i}" type="range" min="0" max="1" step="0.01" value="0.5"></div>`).join('')}</div><div class="effect-grid">${EFFECT_NAMES.map((name, i) => `<div class="effect-cell"><button class="command" data-burst="${i}" title="M${i + 1} one-shot">${name} ↗</button><button class="command" data-toggle="${i}" aria-pressed="false" title="R${i + 1} toggle">R${i + 1} · Off</button></div>`).join('')}</div></section>
     </div><aside class="sidebar">
-      <section class="panel"><div class="panel-head"><h2>Audio input</h2><span class="tag" id="audio-mode">SILENT</span></div><div class="audio-body">${['level', 'bass', 'lowMid', 'mid', 'high'].map(key => `<div class="meter"><span>${key === 'lowMid' ? 'Low mid' : key[0].toUpperCase() + key.slice(1)}</span><div class="meter-track"><div class="meter-fill" id="meter-${key}"></div></div><output id="audio-${key}">0</output></div>`).join('')}<div class="tempo"><strong id="bpm">—</strong><span>BPM</span><div class="beat-lamp" id="beat-lamp"></div></div><div class="source-info" id="source-info">Waiting for system audio</div></div></section>
-      <section class="panel"><div class="panel-head"><h2>Connected audience</h2><span class="tag" id="client-count">— ONLINE</span></div><div id="clients" class="clients"><div class="empty">Connect the desk to view all clients.</div></div></section>
+      <section class="panel audio-panel"><div class="panel-head"><h2>Audio input</h2><span class="tag" id="audio-mode">SILENT</span></div><div class="audio-body">${['level', 'bass', 'lowMid', 'mid', 'high'].map(key => `<div class="meter"><span>${key === 'lowMid' ? 'Low mid' : key[0].toUpperCase() + key.slice(1)}</span><div class="meter-track"><div class="meter-fill" id="meter-${key}"></div></div><output id="audio-${key}">0</output></div>`).join('')}<div class="tempo"><strong id="bpm">—</strong><span>BPM</span><div class="beat-lamp" id="beat-lamp"></div></div><div class="source-info" id="source-info">Waiting for system audio</div></div></section>
       <section class="panel drop-panel"><button class="drop command" id="drop">↯ DROP</button><p>REC · contract / flash / explode</p><label class="source-info" for="drop-target">After the drop</label><select id="drop-target" aria-label="Scene after DROP" style="width:100%;padding:7px;margin-top:7px"><option value="next">Next scene</option><option value="stay">Stay in this scene</option>${SCENES.map((name, i) => `<option value="${i}">${name}</option>`).join('')}</select></section>
-      <section class="panel join"><h2>Bring the room in</h2><p>Open this address on each headset.</p><input id="join-url" aria-label="Audience join URL" readonly><button id="copy-join">Copy audience link</button></section>
+      <section class="panel audience-panel"><div class="panel-head"><h2>Connected audience</h2><span class="tag" id="client-count">— ONLINE</span></div><div id="clients" class="clients"><div class="empty">Connect the desk to view all clients.</div></div></section>
+      <details class="panel join"><summary>Bring the room in</summary><div class="join-body"><p>Open this address on each headset.</p><input id="join-url" aria-label="Audience join URL" readonly><button id="copy-join">Copy audience link</button></div></details>
     </aside></div>
     <footer class="footer"><span>LOCAL RENDERING · SHARED TIME · ONE SHOW</span><span id="clock-info">CLOCK ACQUIRING</span></footer>
   </main>`;
@@ -59,6 +69,7 @@ function updateConnectionLinks() {
   $('copy-join').textContent = 'Copy audience link';
   document.querySelector<HTMLAnchorElement>('.brand')!.href = pageLink(false).href;
   document.querySelector<HTMLAnchorElement>('.header-right a')!.href = pageLink(!hmdMode).href;
+  $<HTMLAnchorElement>('audience-preview-link').href = previewPageLink(location.origin, serverUrl, hosted).href;
   $('server-label').textContent = serverUrl ? new URL(serverUrl).host : 'Choose your Mac';
   $<HTMLInputElement>('server-url').value = serverUrl ? publicServerOrigin() : '';
 }
@@ -163,8 +174,10 @@ $('enter-mr').addEventListener('click', async () => {
   try { if (renderer.stats.xr) await renderer.exitMR(); else await renderer.enterMR(); }
   catch (error) { notice(error instanceof Error ? error.message : String(error)); }
 });
-$('calibrate').addEventListener('click', () => renderer?.beginCalibration());
-$('reset-calibration').addEventListener('click', () => renderer?.resetCalibration());
+if (FLOOR_ALIGNMENT_ENABLED) {
+  $('calibrate').addEventListener('click', () => renderer?.beginCalibration());
+  $('reset-calibration').addEventListener('click', () => renderer?.resetCalibration());
+}
 $<HTMLSelectElement>('quality').addEventListener('change', () => renderer?.setQuality($<HTMLSelectElement>('quality').value as 'low' | 'medium' | 'high'));
 
 function updateClients() {
@@ -266,3 +279,4 @@ window.addEventListener('pagehide', () => { connection.disconnect(); renderer?.d
 window.addEventListener('pageshow', event => { if (event.persisted) location.reload(); });
 // Read-only diagnostics for reproducible browser verification; no credentials are exposed.
 Object.defineProperty(window, '__nanokon', { get: () => ({ connected: connection.connected, role: connection.role, state: connection.timeline.state, clockLocked: connection.clock.locked, source: connection.source, clients: connection.clients, renderReady, stats: renderer?.stats }) });
+}

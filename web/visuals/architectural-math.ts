@@ -15,7 +15,7 @@ export function architecturalCounts(frame: VisualFrame, quality: Quality) {
     cells: Math.max(24, Math.round(({ low: 60, medium: 100, high: 120 }[quality]) * density)),
     latticeLayers: Math.max(2, Math.round(({ low: 3, medium: 4, high: 6 }[quality]) * density)),
     loops: Math.max(2, Math.round((3 + Math.floor(p[3] * 7)) * density)),
-    monoliths: Math.max(2, Math.round(Math.min(3 + Math.floor(p[3] * 9), { low: 6, medium: 10, high: 12 }[quality]) * density)) * 8,
+    chimes: Math.max(1, Math.round(Math.min(2 + Math.floor(p[3] * 5), { low: 3, medium: 5, high: 7 }[quality]) * density)) * 8,
     portalRings: Math.max(6, Math.round(({ low: 12, medium: 20, high: 28 }[quality]) * density)),
   };
 }
@@ -97,33 +97,23 @@ export function loomPoint(frame: VisualFrame, loop: number, u: number, out: Poin
   return architecturalDeform(out, frame, loop, out);
 }
 
-/** Repeating broken arches, lintels and cantilevers establish a readable architectural structure. */
-export function monolithPose(frame: VisualFrame, index: number, out: ArchitecturalPose = emptyArchitecturalPose()): ArchitecturalPose {
-  const p = frame.state.sceneParams;
-  const layer = Math.floor(index / 8), piece = index % 8;
-  const seed = seeded(frame.state.seed, 2100 + layer);
-  const span = 1 + p[6] * 1.7, width = 2.6 + p[0] * 3;
-  const baseY = .4 + (layer % 3) * (.8 + p[1] * .5);
-  const angle = (layer % 2 ? -.15 : .15) + Math.sin(frame.phase * .06 + layer) * p[4] * .11;
-  const centerX = Math.sin(layer * 1.7) * width * .22;
-  const centerZ = -2.5 - Math.floor(layer / 3) * (1.1 + p[0] * .5);
-  let x = 0, y = 0, sx = 1, sy = 1, sz = .25;
-  const thickness = .1 + p[2] * .34;
-  if (piece < 2) { x = (piece ? 1 : -1) * span; y = .75; sx = thickness; sy = 1.4 + p[1] * .5; sz = thickness * 1.6; }
-  else if (piece === 2) { y = 1.6 + p[1] * .25; sx = span * 2 + thickness; sy = thickness; sz = thickness * 2; }
-  else if (piece === 3) { x = (seed - .5) * .4; y = .04; sx = span * 2; sy = thickness * .55; sz = .9; }
-  else {
-    x = ((piece - 4) / 3 - .5) * span * 1.5;
-    y = 2.1 + (piece % 2) * .25;
-    sx = thickness * (.7 + seed); sy = .35 + p[1] * .7; sz = thickness;
-  }
-  const erosion = p[7] * seeded(frame.state.seed, index + 2900);
-  const levitation = Math.sin(frame.phase * .25 + layer * .7 + piece * .3) * p[4] * (.08 + seed * .18 + frame.audio.bass * .1) + frame.audio.beat * .06;
-  out.x = centerX + x * Math.cos(angle); out.y = baseY + y + levitation + erosion * .18; out.z = centerZ + x * Math.sin(angle);
+/** Prismatic pendulums swing from a staggered canopy in a traveling musical wave. */
+export function chimePose(frame: VisualFrame, index: number, out: ArchitecturalPose = emptyArchitecturalPose()): ArchitecturalPose {
+  const p = frame.state.sceneParams, t = frame.phase;
+  const row = Math.floor(index / 8), column = index % 8;
+  const a = seeded(frame.state.seed, index + 2100);
+  const wave = t * (.5 + p[7] * .6) - column * (.22 + p[7] * .6) + row * .8 + a * .3;
+  const swing = Math.sin(wave) * (.06 + p[4] * .65 + frame.audio.mid * .12);
+  const length = (.65 + p[2] * 1.4) * (.8 + a * .35);
+  const pivotX = (column - 3.5) * (.4 + p[0] * .5) + (row % 2) * .18;
+  const pivotY = 2.2 + p[1] * 1.8 + Math.cos(column * .7 + row) * .28;
+  const pivotZ = -1.8 - row * (.35 + p[6] * .75);
+  out.x = pivotX + Math.sin(swing) * length * .5;
+  out.y = pivotY - Math.cos(swing) * length * .5;
+  out.z = pivotZ + Math.sin(wave * .7) * p[4] * .18;
   architecturalDeform(out, frame, index, out);
-  out.rx = piece > 3 ? erosion * .45 : 0; out.ry = angle; out.rz = piece > 3 ? (seed - .5) * p[4] * .4 : 0;
-  out.sx = sx * (1 - erosion * .28); out.sy = sy * (1 - erosion * .45); out.sz = sz;
-  out.y = Math.max(out.sy / 2 + .08, out.y);
+  out.rx = 0; out.ry = a * TAU + t * .12; out.rz = swing;
+  out.sx = .11 + p[2] * .14; out.sy = length * (1 + frame.audio.bass * .07); out.sz = out.sx;
   return out;
 }
 

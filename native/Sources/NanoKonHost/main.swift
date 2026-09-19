@@ -221,7 +221,7 @@ private struct ReplayEvent: Decodable {
                 replayIndex += 1
             }
             let captureState = await health.capture
-            if !options.synthetic && !options.midiOnly && captureState == "error" && now - lastRetry > 5000 {
+            if !options.synthetic && !options.midiOnly && (capture.needsRestart || captureState == "error") && now - lastRetry > 5000 {
                 lastRetry = now
                 await capture.stop()
                 do { try await capture.start(displayID: options.display, excludedBundleIDs: options.excluded) }
