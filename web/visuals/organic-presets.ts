@@ -1,18 +1,18 @@
 import * as THREE from 'three/webgpu';
-import { float, instancedBufferAttribute, normalView, positionViewDirection, reflectVector, sin, smoothstep, uniform, uv, vec3 } from 'three/tsl';
+import { float, instancedBufferAttribute, smoothstep, uniform, uv, vec3 } from 'three/tsl';
 import { seeded } from '../../shared/protocol';
 import type { VisualFrame } from './math';
 import type { Quality } from './parameters';
-import { organicHue, sampleBell, sampleBird, sampleBranch, sampleMercury, sampleSilk, sampleSpore, sampleTendril,
+import { organicHue, sampleBell, sampleBird, sampleBranch, samplePetal, sampleSilk, sampleSpore, sampleTendril,
   type BirdSample, type BranchSample, type OrganicSample } from './organic-math';
 
 export const ORGANIC_QUALITY = {
-  low: { ribbons: 3, colonies: 2, jellyfish: 3, birds: 90, spores: 70, mercuryU: 40, mercuryV: 20 },
-  medium: { ribbons: 6, colonies: 5, jellyfish: 5, birds: 240, spores: 180, mercuryU: 80, mercuryV: 40 },
-  high: { ribbons: 10, colonies: 7, jellyfish: 7, birds: 450, spores: 300, mercuryU: 112, mercuryV: 56 },
+  low: { ribbons: 3, colonies: 2, jellyfish: 3, birds: 90, spores: 70, flowers: 3, petalU: 12, petalV: 4, tendrilSegments: 12 },
+  medium: { ribbons: 6, colonies: 5, jellyfish: 5, birds: 240, spores: 180, flowers: 4, petalU: 18, petalV: 6, tendrilSegments: 16 },
+  high: { ribbons: 10, colonies: 7, jellyfish: 7, birds: 450, spores: 300, flowers: 6, petalU: 24, petalV: 8, tendrilSegments: 24 },
 } as const;
 const QUALITY_NAMES: readonly Quality[] = ['low', 'medium', 'high'];
-const SILK_U = 96, SILK_V = 12, BELL_U = 32, BELL_V = 12, TENDRIL_SEGMENTS = 36;
+const SILK_U = 96, SILK_V = 12, BELL_U = 32, BELL_V = 12, TENDRIL_SIDES = 6;
 const BRANCHES = 63, LEAF_START = 31, BIRD_VERTICES = 11, BIRD_TRAIL_SEGMENTS = 8;
 const UP = new THREE.Vector3(0, 1, 0);
 
@@ -48,28 +48,6 @@ function colorAt(attribute: THREE.BufferAttribute, index: number, hue: number, s
   const g = Math.max(0, Math.min(1, 2 - Math.abs(h - 2)));
   const b = Math.max(0, Math.min(1, 2 - Math.abs(h - 4)));
   attribute.setXYZ(index, value * (1 - saturation + saturation * r), value * (1 - saturation + saturation * g), value * (1 - saturation + saturation * b));
-}
-
-/** Update smooth normals in existing buffers without allocating per-frame vectors. */
-function updateNormals(buffer: GeometryBuffer, vertices: number, indices: number): void {
-  const p = buffer.positions.array as Float32Array, n = buffer.normals.array as Float32Array;
-  const triangles = buffer.geometry.index!.array;
-  n.fill(0, 0, vertices * 3);
-  for (let i = 0; i < indices; i += 3) {
-    const a = triangles[i] * 3, b = triangles[i + 1] * 3, c = triangles[i + 2] * 3;
-    const abx = p[b] - p[a], aby = p[b + 1] - p[a + 1], abz = p[b + 2] - p[a + 2];
-    const acx = p[c] - p[a], acy = p[c + 1] - p[a + 1], acz = p[c + 2] - p[a + 2];
-    const x = aby * acz - abz * acy, y = abz * acx - abx * acz, z = abx * acy - aby * acx;
-    n[a] += x; n[a + 1] += y; n[a + 2] += z;
-    n[b] += x; n[b + 1] += y; n[b + 2] += z;
-    n[c] += x; n[c + 1] += y; n[c + 2] += z;
-  }
-  for (let i = 0; i < vertices * 3; i += 3) {
-    const length = Math.hypot(n[i], n[i + 1], n[i + 2]);
-    if (length > 1e-8) { n[i] /= length; n[i + 1] /= length; n[i + 2] /= length; }
-    else { n[i] = 0; n[i + 1] = 1; n[i + 2] = 0; }
-  }
-  buffer.normals.needsUpdate = true;
 }
 
 function mesh(buffer: GeometryBuffer, material: THREE.Material): THREE.Mesh {
@@ -110,19 +88,21 @@ export class OrganicPresets {
   private spores: THREE.Sprite;
 
   private bells = surface(7, BELL_U, BELL_V);
-  private tentacles = buffers(7 * 18 * TENDRIL_SEGMENTS * 2);
+  private tentacles = QUALITY_NAMES.map(quality => surface(ORGANIC_QUALITY[quality].jellyfish * 18, TENDRIL_SIDES, ORGANIC_QUALITY[quality].tendrilSegments));
+  private tentacleMeshes: THREE.Mesh[] = [];
+  private before: OrganicSample = { x: 0, y: 0, z: 0, hue: 0, glow: 1 };
+  private after: OrganicSample = { x: 0, y: 0, z: 0, hue: 0, glow: 1 };
+  private tangent = new THREE.Vector3();
+  private normal = new THREE.Vector3();
+  private binormal = new THREE.Vector3();
   private bellVeins = buffers(7 * (8 * BELL_V + BELL_U) * 2);
   private bellMaterial = new THREE.MeshBasicNodeMaterial({ vertexColors: true, side: THREE.DoubleSide, transparent: true, opacity: .3, depthWrite: false });
-  private tentacleMaterial = new THREE.LineBasicNodeMaterial({ vertexColors: true, transparent: true, opacity: .82, depthWrite: false });
+  private tentacleMaterial = new THREE.MeshBasicNodeMaterial({ vertexColors: true, side: THREE.DoubleSide });
   private veinMaterial = new THREE.LineBasicNodeMaterial({ vertexColors: true, transparent: true, opacity: .58, depthWrite: false });
 
-  private mercury = QUALITY_NAMES.map(quality => surface(1, ORGANIC_QUALITY[quality].mercuryU, ORGANIC_QUALITY[quality].mercuryV));
-  private mercuryGain = uniform(1);
-  private mercurySheen = uniform(.2);
-  private mercuryTint = uniform(new THREE.Color('#bbdce5'));
-  private mercuryMaterial = new THREE.MeshPhysicalNodeMaterial({ metalness: .97, roughness: .2, clearcoat: .8, clearcoatRoughness: .08, side: THREE.DoubleSide });
-  private mercuryMeshes: THREE.Mesh[] = [];
-  private droplets = new THREE.InstancedMesh(new THREE.SphereGeometry(1, 12, 8), this.mercuryMaterial, 14);
+  private petals = QUALITY_NAMES.map(quality => surface(ORGANIC_QUALITY[quality].flowers * 16, ORGANIC_QUALITY[quality].petalU, ORGANIC_QUALITY[quality].petalV));
+  private petalMaterial = new THREE.MeshBasicNodeMaterial({ vertexColors: true, side: THREE.DoubleSide });
+  private petalMeshes: THREE.Mesh[] = [];
 
   private birds = buffers(450 * BIRD_VERTICES);
   private birdTrails = buffers(450 * BIRD_TRAIL_SEGMENTS * 2);
@@ -133,7 +113,7 @@ export class OrganicPresets {
 
   constructor() {
     this.group.name = 'Organic procedural presets';
-    const names = ['TIDAL SILK', 'MYCELIUM CHOIR', 'ABYSSAL BLOOM', 'LIQUID MERCURY', 'EMBER MIGRATION'];
+    const names = ['TIDAL SILK', 'MYCELIUM CHOIR', 'ABYSSAL BLOOM', 'LUMEN GARDEN', 'EMBER MIGRATION'];
     this.scenes.forEach((scene, index) => { scene.name = names[index]; scene.visible = false; this.group.add(scene); });
     this.group.visible = false;
     this.scenes[0].add(mesh(this.silk, this.silkMaterial), lines(this.silkEdges, this.silkLineMaterial));
@@ -150,19 +130,12 @@ export class OrganicPresets {
     this.spores = new THREE.Sprite(sporeMaterial); this.spores.frustumCulled = false;
     this.scenes[1].add(this.stems, this.canopies, this.spores);
 
-    this.scenes[2].add(mesh(this.bells, this.bellMaterial), lines(this.tentacles, this.tentacleMaterial), lines(this.bellVeins, this.veinMaterial));
+    this.tentacleMeshes = this.tentacles.map(buffer => mesh(buffer, this.tentacleMaterial));
+    this.tentacleMeshes.forEach(tube => { tube.name = 'Volumetric jellyfish tendrils'; });
+    this.scenes[2].add(mesh(this.bells, this.bellMaterial), ...this.tentacleMeshes, lines(this.bellVeins, this.veinMaterial));
 
-    // Procedural reflected illumination supplies a chrome environment without a texture download.
-    const sky = smoothstep(-.22, .35, reflectVector.y);
-    const reflectedBands = smoothstep(.9, .995, sin(reflectVector.y.mul(9).add(reflectVector.x.mul(4))).abs());
-    const fresnel = float(1).sub(normalView.dot(positionViewDirection).abs()).pow(3);
-    this.mercuryMaterial.colorNode = this.mercuryTint;
-    this.mercuryMaterial.roughnessNode = this.mercurySheen;
-    this.mercuryMaterial.envNode = vec3(.025, .04, .06).add(vec3(.12, .2, .28).mul(sky)).add(vec3(1.8, 1.7, 1.55).mul(reflectedBands)).mul(this.mercuryGain);
-    this.mercuryMaterial.emissiveNode = this.mercuryTint.mul(fresnel.mul(.14).add(.015)).mul(this.mercuryGain);
-    this.mercuryMeshes = this.mercury.map(buffer => mesh(buffer, this.mercuryMaterial));
-    this.droplets.instanceMatrix.setUsage(THREE.DynamicDrawUsage); this.droplets.frustumCulled = false;
-    this.scenes[3].add(...this.mercuryMeshes, this.droplets);
+    this.petalMeshes = this.petals.map(buffer => mesh(buffer, this.petalMaterial));
+    this.scenes[3].add(...this.petalMeshes);
 
     const birdIndex = new Uint16Array(450 * 15);
     for (let bird = 0; bird < 450; bird++) {
@@ -176,13 +149,13 @@ export class OrganicPresets {
 
   update(frame: VisualFrame, quality: Quality, gain: number): void {
     const index = frame.state.scene - 5;
-    this.group.visible = index >= 0 && index < 5;
-    for (let scene = 0; scene < 5; scene++) this.scenes[scene].visible = scene === index;
+    this.group.visible = index >= 0 && index < 5 && frame.state.running && gain > 0;
+    for (let scene = 0; scene < 5; scene++) this.scenes[scene].visible = scene === index && this.group.visible;
     if (!this.group.visible) return;
     if (index === 0) this.updateSilk(frame, quality, gain);
     else if (index === 1) this.updateMycelium(frame, quality, gain);
     else if (index === 2) this.updateJellyfish(frame, quality, gain);
-    else if (index === 3) this.updateMercury(frame, quality, gain);
+    else if (index === 3) this.updateGarden(frame, quality, gain);
     else this.updateBirds(frame, quality, gain);
   }
 
@@ -243,17 +216,34 @@ export class OrganicPresets {
     const count = activeCount(ORGANIC_QUALITY[quality].jellyfish, frame.state.controls.density);
     const tendrils = 6 + Math.floor(frame.state.sceneParams[3] * 12);
     this.bellMaterial.color.setScalar(gain * 1.4); this.tentacleMaterial.color.setScalar(gain * 2); this.veinMaterial.color.setScalar(gain * 1.55);
-    let vertex = 0, line = 0, vein = 0;
+    const active = QUALITY_NAMES.indexOf(quality), tubes = this.tentacles[active];
+    this.tentacleMeshes.forEach((tube, index) => { tube.visible = index === active; });
+    let vertex = 0, tubeVertex = 0, vein = 0;
     for (let jelly = 0; jelly < count; jelly++) {
       for (let v = 0; v <= BELL_V; v++) for (let u = 0; u <= BELL_U; u++) {
         sampleBell(frame, jelly, u / BELL_U, v / BELL_V, this.point);
         this.bells.positions.setXYZ(vertex, this.point.x, this.point.y, this.point.z);
         colorAt(this.bells.colors, vertex++, this.point.hue, .57, this.point.glow);
       }
-      for (let tendril = 0; tendril < tendrils; tendril++) for (let segment = 0; segment < TENDRIL_SEGMENTS; segment++) for (let endpoint = 0; endpoint < 2; endpoint++) {
-        sampleTendril(frame, jelly, tendril, (segment + endpoint) / TENDRIL_SEGMENTS, this.point);
-        this.tentacles.positions.setXYZ(line, this.point.x, this.point.y, this.point.z);
-        colorAt(this.tentacles.colors, line++, this.point.hue, .61, this.point.glow);
+      // A closed hexagonal cross-section stays visible from either eye and every viewing angle.
+      for (let tendril = 0; tendril < tendrils; tendril++) for (let segment = 0; segment <= tubes.v; segment++) {
+        const u = segment / tubes.v;
+        sampleTendril(frame, jelly, tendril, u, this.point);
+        sampleTendril(frame, jelly, tendril, Math.max(0, u - .001), this.before);
+        sampleTendril(frame, jelly, tendril, Math.min(1, u + .001), this.after);
+        this.tangent.set(this.after.x - this.before.x, this.after.y - this.before.y, this.after.z - this.before.z).normalize();
+        this.normal.set(1, 0, 0).addScaledVector(this.tangent, -this.tangent.x);
+        if (this.normal.lengthSq() < .001) this.normal.set(0, 0, 1).addScaledVector(this.tangent, -this.tangent.z);
+        this.normal.normalize(); this.binormal.crossVectors(this.tangent, this.normal).normalize();
+        const radius = (.025 + frame.state.sceneParams[6] * .025) * (1 - u * .8) * (1 + Math.sin(u * 18 - frame.phase + tendril) * .12);
+        for (let side = 0; side <= TENDRIL_SIDES; side++) {
+          const angle = side / TENDRIL_SIDES * Math.PI * 2, c = Math.cos(angle), s = Math.sin(angle);
+          tubes.positions.setXYZ(tubeVertex,
+            this.point.x + radius * (this.normal.x * c + this.binormal.x * s),
+            this.point.y + radius * (this.normal.y * c + this.binormal.y * s),
+            this.point.z + radius * (this.normal.z * c + this.binormal.z * s));
+          colorAt(tubes.colors, tubeVertex++, this.point.hue, .54, this.point.glow * (.65 + .35 * Math.cos(angle - .7)));
+        }
       }
       for (let rib = 0; rib < 8; rib++) for (let segment = 0; segment < BELL_V; segment++) for (let endpoint = 0; endpoint < 2; endpoint++) {
         sampleBell(frame, jelly, rib / 8, (segment + endpoint) / BELL_V, this.point);
@@ -266,48 +256,21 @@ export class OrganicPresets {
         colorAt(this.bellVeins.colors, vein++, this.point.hue, .42, 1.25);
       }
     }
-    finish(this.bells, count * this.bells.indicesPerItem); finish(this.tentacles, line); finish(this.bellVeins, vein);
+    finish(this.bells, count * this.bells.indicesPerItem); finish(tubes, count * tendrils * tubes.indicesPerItem); finish(this.bellVeins, vein);
   }
 
-  private updateMercury(frame: VisualFrame, quality: Quality, gain: number): void {
-    const active = QUALITY_NAMES.indexOf(quality), buffer = this.mercury[active], p = frame.state.sceneParams;
-    for (let i = 0; i < this.mercuryMeshes.length; i++) this.mercuryMeshes[i].visible = i === active;
-    this.mercuryGain.value = gain * (.35 + p[7] * .9);
-    this.mercurySheen.value = .08 + (1 - p[7]) * .45;
-    this.mercuryTint.value.setHSL(organicHue(frame, 8, 0), .14, .7);
+  private updateGarden(frame: VisualFrame, quality: Quality, gain: number): void {
+    const active = QUALITY_NAMES.indexOf(quality), buffer = this.petals[active];
+    this.petalMeshes.forEach((petals, index) => { petals.visible = index === active; });
+    this.petalMaterial.color.setScalar(gain * 1.1);
+    const count = activeCount(ORGANIC_QUALITY[quality].flowers, frame.state.controls.density) * 16;
     let vertex = 0;
-    for (let v = 0; v <= buffer.v; v++) for (let u = 0; u <= buffer.u; u++) {
-      sampleMercury(frame, 0, u / buffer.u, v / buffer.v, this.point);
-      buffer.positions.setXYZ(vertex++, this.point.x, this.point.y, this.point.z);
+    for (let petal = 0; petal < count; petal++) for (let v = 0; v <= buffer.v; v++) for (let u = 0; u <= buffer.u; u++) {
+      samplePetal(frame, petal, u / buffer.u, v / buffer.v, this.point);
+      buffer.positions.setXYZ(vertex, this.point.x, this.point.y, this.point.z);
+      colorAt(buffer.colors, vertex++, this.point.hue, .85, this.point.glow);
     }
-    buffer.geometry.setDrawRange(0, buffer.indicesPerItem); buffer.positions.needsUpdate = true;
-    updateNormals(buffer, buffer.verticesPerItem, buffer.indicesPerItem);
-    // Average the periodic seam so the reflective surface does not reveal its UV boundary.
-    for (let row = 0; row <= buffer.v; row++) {
-      const a = row * (buffer.u + 1), b = a + buffer.u;
-      this.direction.set(buffer.normals.getX(a) + buffer.normals.getX(b), buffer.normals.getY(a) + buffer.normals.getY(b), buffer.normals.getZ(a) + buffer.normals.getZ(b)).normalize();
-      buffer.normals.setXYZ(a, this.direction.x, this.direction.y, this.direction.z);
-      buffer.normals.setXYZ(b, this.direction.x, this.direction.y, this.direction.z);
-    }
-    for (let pole = 0; pole < 2; pole++) {
-      const base = pole * buffer.v * (buffer.u + 1);
-      this.direction.set(0, 0, 0);
-      for (let column = 0; column <= buffer.u; column++) {
-        const index = base + column;
-        this.direction.x += buffer.normals.getX(index); this.direction.y += buffer.normals.getY(index); this.direction.z += buffer.normals.getZ(index);
-      }
-      this.direction.normalize();
-      for (let column = 0; column <= buffer.u; column++) buffer.normals.setXYZ(base + column, this.direction.x, this.direction.y, this.direction.z);
-    }
-    this.droplets.count = activeCount(quality === 'low' ? 5 : quality === 'medium' ? 9 : 14, frame.state.controls.density);
-    for (let i = 0; i < this.droplets.count; i++) {
-      sampleMercury(frame, i + 1, .25, .5, this.point);
-      const radius = (.11 + seeded(frame.state.seed, i + 733) * .16) * (.7 + p[0] * .5);
-      this.dummy.position.set(this.point.x, this.point.y, this.point.z); this.dummy.quaternion.identity();
-      this.dummy.scale.set(radius, radius * (1 + Math.sin(frame.phase + i) * p[2] * .15), radius);
-      this.dummy.updateMatrix(); this.droplets.setMatrixAt(i, this.dummy.matrix);
-    }
-    this.droplets.instanceMatrix.needsUpdate = true;
+    finish(buffer, count * buffer.indicesPerItem);
   }
 
   private updateBirds(frame: VisualFrame, quality: Quality, gain: number): void {

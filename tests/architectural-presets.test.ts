@@ -2,7 +2,7 @@ import * as THREE from 'three/webgpu';
 import { describe, expect, it, vi } from 'vitest';
 import { initialState, SILENCE } from '../shared/protocol';
 import { ArchitecturalPresets } from '../web/visuals/architectural-presets';
-import { architecturalCounts, architecturalDeform, architecturalPalette, latticePose, loomPoint, monolithPose, origamiPoint, portalPoint } from '../web/visuals/architectural-math';
+import { architecturalCounts, architecturalDeform, architecturalPalette, latticePose, loomPoint, chimePose, origamiPoint, portalPoint } from '../web/visuals/architectural-math';
 import { visualFrame, type VisualFrame } from '../web/visuals/math';
 
 function frame(scene = 10, phase = 5, seed = 48291): VisualFrame {
@@ -50,14 +50,14 @@ describe('architectural surface presets', () => {
     }
   });
 
-  it('uses density for complete cells, lattices, closed loops, arches and portal rings', () => {
+  it('uses density for complete cells, lattices, closed loops, chime rows and portal rings', () => {
     const sample = frame();
     sample.state.controls.density = 0;
     const low = architecturalCounts(sample, 'medium');
     sample.state.controls.density = 1;
     const high = architecturalCounts(sample, 'medium');
     for (const key of Object.keys(low) as (keyof typeof low)[]) expect(high[key]).toBeGreaterThan(low[key]);
-    expect(low.monoliths % 8).toBe(0); expect(high.monoliths % 8).toBe(0);
+    expect(low.chimes % 8).toBe(0); expect(high.chimes % 8).toBe(0);
   });
 
   it('produces the same rendered geometry after different histories and quality settings', () => {
@@ -79,7 +79,7 @@ describe('architectural surface presets', () => {
     expect(origamiPoint(a, 3, 2, .5, .5, true)).not.toEqual(origamiPoint(b, 3, 2, .5, .5, true));
     expect(latticePose(a, 2, 5, false)).not.toEqual(latticePose(b, 2, 5, false));
     expect(loomPoint(a, 2, .23)).not.toEqual(loomPoint(b, 2, .23));
-    expect(monolithPose(a, 16)).not.toEqual(monolithPose(b, 16));
+    expect(chimePose(a, 16)).not.toEqual(chimePose(b, 16));
     expect(portalPoint(a, 3, 2, 1, false)).not.toEqual(portalPoint(b, 3, 2, 1, false));
     const frozen = { ...b, time: b.time + 500000 };
     expect(loomPoint(b, 1, .7)).toEqual(loomPoint(frozen, 1, .7));

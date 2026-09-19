@@ -18,12 +18,12 @@ export const PRESET_PARAMETERS = [
   ['Ribbon spread', 'Curtain height', 'Ribbon thickness', 'Fold frequency', 'Silk curl', 'Palette hue', 'Ribbon length', 'Silk shimmer'],
   ['Colony spread', 'Stem height', 'Branch thickness', 'Branch angle', 'Stem bend', 'Palette hue', 'Canopy spread', 'Spore drift'],
   ['Swarm spread', 'Float height', 'Bell detail', 'Tendril count', 'Bell pulse', 'Palette hue', 'Bell radius', 'Tentacle curl'],
-  ['Fluid radius', 'Surface height', 'Ripple depth', 'Ripple frequency', 'Viscosity', 'Palette hue', 'Lobe count', 'Surface sheen'],
+  ['Garden spread', 'Flower height', 'Petal length', 'Petal width', 'Petal sway', 'Palette hue', 'Bloom opening', 'Petal glow'],
   ['Flock spread', 'Flight height', 'Wing span', 'Wingbeat', 'Flight bank', 'Palette hue', 'Flock cohesion', 'Trail stretch'],
   ['Fold span', 'Mechanism height', 'Facet size', 'Fold count', 'Fold angle', 'Palette hue', 'Tessellation radius', 'Crease contrast'],
   ['Lattice span', 'Observatory height', 'Line width', 'Lattice frequency', 'Lattice angle', 'Palette hue', 'Layer separation', 'Interference drift'],
   ['Weave spread', 'Loom height', 'Thread thickness', 'Weave count', 'Braid twist', 'Palette hue', 'Knot radius', 'Weave tension'],
-  ['Ruin span', 'Ruin height', 'Block size', 'Layer count', 'Levitation', 'Palette hue', 'Arch span', 'Erosion'],
+  ['Chime spread', 'Canopy height', 'Prism size', 'Row count', 'Swing amplitude', 'Palette hue', 'Row depth', 'Wave travel'],
   ['Portal spread', 'Portal height', 'Aperture thickness', 'Polygon sides', 'Tunnel twist', 'Palette hue', 'Tunnel depth', 'Spectral split'],
 ] as const;
 

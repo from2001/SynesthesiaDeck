@@ -1,6 +1,5 @@
 import * as THREE from 'three/webgpu';
-import { seeded } from '../../shared/protocol';
-import { architecturalCounts, architecturalDeform, architecturalPalette, emptyArchitecturalPose, latticePose, loomPoint, monolithPose, origamiPoint, portalPoint,
+import { architecturalCounts, architecturalDeform, architecturalPalette, emptyArchitecturalPose, latticePose, loomPoint, chimePose, origamiPoint, portalPoint,
   type ArchitecturalPose } from './architectural-math';
 import type { Point3, VisualFrame } from './math';
 import type { Quality } from './parameters';
@@ -32,7 +31,7 @@ export class ArchitecturalPresets {
   private readonly lattice = new THREE.InstancedMesh(new THREE.PlaneGeometry(1, 1), new THREE.MeshBasicNodeMaterial({ side: THREE.DoubleSide }), 6 * 64 * 2);
   private readonly loom: THREE.Mesh;
   private loomSegments = 112;
-  private readonly monoliths: THREE.InstancedMesh;
+  private readonly chimes: THREE.InstancedMesh;
   private readonly portal: THREE.Mesh;
   private readonly dummy = new THREE.Object3D();
   private readonly color = new THREE.Color();
@@ -63,16 +62,19 @@ export class ArchitecturalPresets {
     this.loom = new THREE.Mesh(dynamicGeometry(10 * 113 * 6, tubeIndices), surfaceMaterial());
     this.worlds[2].name = 'IMPOSSIBLE LOOM'; this.worlds[2].add(this.loom);
 
-    const blocks = new THREE.BoxGeometry(1, 1, 1);
-    const normals = blocks.getAttribute('normal');
+    const prisms = new THREE.LatheGeometry([
+      new THREE.Vector2(0, -.5), new THREE.Vector2(.62, -.36),
+      new THREE.Vector2(.62, .36), new THREE.Vector2(.32, .5), new THREE.Vector2(0, .5),
+    ], 6);
+    const normals = prisms.getAttribute('normal');
     const shades = new Float32Array(normals.count * 3);
     for (let index = 0; index < normals.count; index++) {
       const shade = .35 + .65 * Math.max(0, normals.getX(index) * this.light.x + normals.getY(index) * this.light.y + normals.getZ(index) * this.light.z);
       shades.set([shade, shade, shade], index * 3);
     }
-    blocks.setAttribute('color', new THREE.BufferAttribute(shades, 3));
-    this.monoliths = new THREE.InstancedMesh(blocks, new THREE.MeshBasicNodeMaterial({ vertexColors: true }), 96);
-    this.worlds[3].name = 'GRAVITY PALIMPSEST'; this.worlds[3].add(this.monoliths);
+    prisms.setAttribute('color', new THREE.BufferAttribute(shades, 3));
+    this.chimes = new THREE.InstancedMesh(prisms, new THREE.MeshBasicNodeMaterial({ vertexColors: true }), 56);
+    this.worlds[3].name = 'RESONANT CHIMES'; this.worlds[3].add(this.chimes);
 
     const portalIndices: number[] = [];
     for (let quad = 0; quad < 28 * 12 * 3; quad++) {
@@ -80,12 +82,12 @@ export class ArchitecturalPresets {
     }
     this.portal = new THREE.Mesh(dynamicGeometry(28 * 12 * 3 * 4, portalIndices), surfaceMaterial());
     this.worlds[4].name = 'PRISMATIC PORTAL'; this.worlds[4].add(this.portal);
-    for (const object of [this.paper, this.creases, this.loom, this.portal, this.lattice, this.monoliths]) object.frustumCulled = false;
+    for (const object of [this.paper, this.creases, this.loom, this.portal, this.lattice, this.chimes]) object.frustumCulled = false;
     this.lattice.instanceMatrix.setUsage(THREE.DynamicDrawUsage);
-    this.monoliths.instanceMatrix.setUsage(THREE.DynamicDrawUsage);
+    this.chimes.instanceMatrix.setUsage(THREE.DynamicDrawUsage);
     // Allocate instance colors in the constructor rather than on the first visible frame.
     this.lattice.setColorAt(0, this.color.setRGB(1, 1, 1));
-    this.monoliths.setColorAt(0, this.color.setRGB(1, 1, 1));
+    this.chimes.setColorAt(0, this.color.setRGB(1, 1, 1));
   }
 
   update(frame: VisualFrame, quality: Quality, gain: number): void {
@@ -96,7 +98,7 @@ export class ArchitecturalPresets {
     if (active === 0) this.updatePaper(frame, quality, gain);
     else if (active === 1) this.updateLattice(frame, quality, gain);
     else if (active === 2) this.updateLoom(frame, quality, gain);
-    else if (active === 3) this.updateMonoliths(frame, quality, gain);
+    else if (active === 3) this.updateChimes(frame, quality, gain);
     else this.updatePortal(frame, quality, gain);
   }
 
@@ -207,15 +209,16 @@ export class ArchitecturalPresets {
     this.finish(this.loom.geometry, loops * segments * 6 * 6, loops * (segments + 1) * 6);
   }
 
-  private updateMonoliths(frame: VisualFrame, quality: Quality, gain: number): void {
-    const count = architecturalCounts(frame, quality).monoliths;
+  private updateChimes(frame: VisualFrame, quality: Quality, gain: number): void {
+    const count = architecturalCounts(frame, quality).chimes;
     for (let index = 0; index < count; index++) {
-      this.transform(this.monoliths, index, monolithPose(frame, index, this.pose));
-      this.color.setHSL(architecturalPalette(frame, index, .1), .06 + Math.abs(frame.state.sceneParams[5] - .5) * .2,
-        .34 + seeded(frame.state.seed, index + 2700) * .32).multiplyScalar(gain * 1.2);
-      this.monoliths.setColorAt(index, this.color);
+      this.transform(this.chimes, index, chimePose(frame, index, this.pose));
+      const wave = .5 + .5 * Math.sin(frame.phase * (.5 + frame.state.sceneParams[7]) - index * .32);
+      this.color.setHSL(architecturalPalette(frame, index, .48 + (index % 8) * .045), .67, .58)
+        .multiplyScalar(gain * (.9 + wave * frame.state.sceneParams[7] * .65 + frame.audio.high * .3));
+      this.chimes.setColorAt(index, this.color);
     }
-    this.monoliths.count = count; this.monoliths.instanceMatrix.needsUpdate = true; this.monoliths.instanceColor!.needsUpdate = true;
+    this.chimes.count = count; this.chimes.instanceMatrix.needsUpdate = true; this.chimes.instanceColor!.needsUpdate = true;
   }
 
   private updatePortal(frame: VisualFrame, quality: Quality, gain: number): void {

@@ -25,13 +25,13 @@ All fonts are system monospace and the code atlas is generated locally. No exter
 | SINGULARITY | Infalling spiral particles, code fragments, tilted accretion rings and a central polyhedron | Bass enlarges the core and particles; the scheduled DROP contracts, flashes and releases a seeded spherical burst |
 | TIDAL SILK | Broad folded ribbon surfaces forming a tidal curtain | Audio modulates ribbon folding and shimmer |
 | MYCELIUM CHOIR | Branching stems, layered canopies, and drifting spores | Audio modulates growth-like sway and colony brightness |
-| ABYSSAL BLOOM | Pulsing bell surfaces and curling tendrils | Audio changes bell pulse and tendril motion |
-| LIQUID MERCURY | A reflective-looking lobed fluid surface | Audio drives ripples and surface deformation |
+| ABYSSAL BLOOM | Pulsing bell surfaces and thick, tapered mesh tendrils | Audio changes bell pulse and tendril motion |
+| LUMEN GARDEN | Layered flowers made from broad, luminous petal meshes | Audio modulates petal opening and brightness |
 | EMBER MIGRATION | Winged silhouettes and stretched trails | Audio modulates wingbeats, bank, and flock character |
 | ORIGAMI ENGINE | Tessellated folded facets and articulated creases | Audio changes fold angle and crease contrast |
 | MOIRE OBSERVATORY | Layered line lattices with interference patterns | Audio modulates lattice angle and interference drift |
 | IMPOSSIBLE LOOM | Interlaced thick threads forming sculptural knots | Audio modulates braid twist and weave tension |
-| GRAVITY PALIMPSEST | Layers of eroded floating blocks and arches | Audio modulates levitation and erosion character |
+| RESONANT CHIMES | Rows of elongated, faceted pendulum chimes | Audio modulates pendulum swing and traveling illumination |
 | PRISMATIC PORTAL | Nested polygonal apertures extending into a tunnel | Audio changes tunnel twist and spectral separation |
 
 The catalog preserves IDs 0–4 for the original scenes and appends ten scenes as IDs 5–14. Signal, Organic, and Structures are dashboard navigation groups, not controller banks. The physical S buttons remain fixed to the first eight presets; REW/FF wrap the complete 15-scene catalog. [Scene catalog and all knob labels](scene-catalog.md) describe each preset.
@@ -41,6 +41,8 @@ Each scene exposes eight knob labels from `PRESET_PARAMETERS` in `web/visuals/pa
 The eight effect slots are Orbit, Pulse, Twist, Mirror, Scatter, Strobe, Prism and Freeze. Toggles sustain the named effect; one-shots use the scheduled event envelope. Strobe uses a four-Hz brightness gate. Persistent Freeze pauses the authoritative motion phase; one-shot Freeze uses the event's `frozenPhase`. Live audio and scheduled DROP timing continue while motion is frozen.
 
 Geometry identity comes from the shared integer hash. Positions are evaluated from absolute `motionAt()` phase; no animation uses `Math.random()` or integrates local frame deltas. Audio flow modulation is bounded, preventing large phase jumps after long runs. DROP contraction, flash and expansion are evaluated from event `effectiveAt` and `duration`; expired effects contribute nothing. Burst geometry uses the selected DROP event seed. Scene transition scheduling remains the show authority's responsibility.
+
+Abyssal Bloom (ID 7) and Ember Migration (ID 9) have a -1 m floor-space content translation, independent of Scale and DROP contraction. All other scenes reset this translation to zero. See the [headset feedback change record](scene-feedback-2026-09-09.md) for the replacements and verification scope.
 
 ## Quality budgets
 
@@ -53,6 +55,10 @@ Geometry identity comes from the shared integer hash. Positions are evaluated fr
 Density selects a prefix of stable particle identities. Other scene primitives have smaller scene-specific caps. City tower placement uses a deterministic permutation so low-density cities cover the complete footprint. Shader instancing keeps draw calls bounded, while analytic positions are evaluated on the CPU and uploaded through dynamic attributes. These are workload limits, not headset performance guarantees. Start hardware acceptance on Low and measure before selecting a higher tier.
 
 ## Shared two-point calibration
+
+**Temporarily disabled on 2026-09-09:** `FLOOR_ALIGNMENT_ENABLED` in `web/visuals/alignment-settings.ts` is `false`. MR entry, reference-space reset, controller grip, and the public calibration action cannot start floor selection; the page omits both alignment buttons. Use the Quest system button long-press to recenter from the same physical position and direction on each headset. The existing local-floor reference space and three-meter forward show offset remain in use, and reference resets clear any custom transform without counteracting the headset reset. Change this flag to `true` and rebuild/redeploy to restore the workflow below. This switch does not change Quest system boundary dialogs.
+
+The following describes the workflow when enabled.
 
 Every preset uses meters and a floor-relative Y origin. A separate show-root transform applies alignment without changing procedural coordinates, controllers, camera or timing.
 

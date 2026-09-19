@@ -12,13 +12,15 @@ The desk contains 15 presets. Display numbers are 01–15; protocol IDs are 0–
 | 06 / 5 | TIDAL SILK | Organic | Broad folded ribbons forming a breathing curtain | S6 |
 | 07 / 6 | MYCELIUM CHOIR | Organic | Branching colonies, canopies, and spores | S7 |
 | 08 / 7 | ABYSSAL BLOOM | Organic | Pulsing bells and curling deep-sea tendrils | S8 |
-| 09 / 8 | LIQUID MERCURY | Organic | Rippling, lobed fluid surface and metallic sheen | — |
+| 09 / 8 | LUMEN GARDEN | Organic | Broad luminous petals opening into layered flowers | — |
 | 10 / 9 | EMBER MIGRATION | Organic | Winged ember silhouettes, banking flocks, and trails | — |
 | 11 / 10 | ORIGAMI ENGINE | Structures | Tessellated facets and opening paper mechanisms | — |
 | 12 / 11 | MOIRE OBSERVATORY | Structures | Layered lattices and optical interference | — |
 | 13 / 12 | IMPOSSIBLE LOOM | Structures | Thick interlaced threads and sculptural knots | — |
-| 14 / 13 | GRAVITY PALIMPSEST | Structures | Floating block ruins and impossible arches | — |
+| 14 / 13 | RESONANT CHIMES | Structures | Suspended prismatic chimes swinging in traveling waves | — |
 | 15 / 14 | PRISMATIC PORTAL | Structures | Nested polygonal apertures and a spectral tunnel | — |
+
+The September 9 headset revision replaces IDs 8 and 13 with Lumen Garden and Resonant Chimes, lowers IDs 7 and 9 by exactly 1 m, and gives Abyssal Bloom volumetric tendrils. See the [change record](scene-feedback-2026-09-09.md).
 
 The nanoKONTROL2 has eight S buttons. They always select presets 01–08; selecting another group never changes that mapping. REW and FF traverse all 15 presets and wrap at either end. The dashboard and DROP destination menu can select any preset directly. There are no reserved scene placeholders or S9–S15 controls.
 
@@ -36,12 +38,12 @@ Each row lists knobs 1–8 from left to right. Knob 6 always controls palette hu
 | TIDAL SILK | Ribbon spread; Curtain height; Ribbon thickness; Fold frequency | Silk curl; Palette hue; Ribbon length; Silk shimmer |
 | MYCELIUM CHOIR | Colony spread; Stem height; Branch thickness; Branch angle | Stem bend; Palette hue; Canopy spread; Spore drift |
 | ABYSSAL BLOOM | Swarm spread; Float height; Bell detail; Tendril count | Bell pulse; Palette hue; Bell radius; Tentacle curl |
-| LIQUID MERCURY | Fluid radius; Surface height; Ripple depth; Ripple frequency | Viscosity; Palette hue; Lobe count; Surface sheen |
+| LUMEN GARDEN | Garden spread; Flower height; Petal length; Petal width | Petal sway; Palette hue; Bloom opening; Petal glow |
 | EMBER MIGRATION | Flock spread; Flight height; Wing span; Wingbeat | Flight bank; Palette hue; Flock cohesion; Trail stretch |
 | ORIGAMI ENGINE | Fold span; Mechanism height; Facet size; Fold count | Fold angle; Palette hue; Tessellation radius; Crease contrast |
 | MOIRE OBSERVATORY | Lattice span; Observatory height; Line width; Lattice frequency | Lattice angle; Palette hue; Layer separation; Interference drift |
 | IMPOSSIBLE LOOM | Weave spread; Loom height; Thread thickness; Weave count | Braid twist; Palette hue; Knot radius; Weave tension |
-| GRAVITY PALIMPSEST | Ruin span; Ruin height; Block size; Layer count | Levitation; Palette hue; Arch span; Erosion |
+| RESONANT CHIMES | Chime spread; Canopy height; Prism size; Row count | Swing amplitude; Palette hue; Row depth; Wave travel |
 | PRISMATIC PORTAL | Portal spread; Portal height; Aperture thickness; Polygon sides | Tunnel twist; Palette hue; Tunnel depth; Spectral split |
 
 M1–M8 one-shots and R1–R8 persistent effects retain the common Orbit, Pulse, Twist, Mirror, Scatter, Strobe, Prism, and Freeze names. STOP and reset clear effects; scene changes retain transport state and restore scene knob defaults. Physical knobs still use pickup after those defaults change.

@@ -8,38 +8,18 @@ public final class AudioPipeline: @unchecked Sendable {
     private let queue = DispatchQueue(label: "show.audio.analysis", qos: .userInitiated)
     private let slots = DispatchSemaphore(value: 8)
     private let analyzer: AudioAnalyzer
-    private var timer: DispatchSourceTimer?
-    private var nextSampleTime: Double?
-    private var lastSampleRate = 48000.0
     private let onFrame: @Sendable (AnalyzedFrame) -> Void
     public init(configuration: AnalyzerConfiguration = .init(), onFrame: @escaping @Sendable (AnalyzedFrame) -> Void) {
         analyzer = AudioAnalyzer(configuration: configuration); self.onFrame = onFrame
-    }
-    public func startSilenceWatchdog() {
-        self.timer?.cancel()
-        let timer = DispatchSource.makeTimerSource(queue: queue)
-        timer.schedule(deadline: .now() + 0.1, repeating: 1.0 / 30)
-        timer.setEventHandler { [weak self] in
-            guard let self, let next = self.nextSampleTime, monotonicMilliseconds() - next > 70 else { return }
-            let count = Int(self.lastSampleRate / 30)
-            self.analyze([Float](repeating: 0, count: count), rate: self.lastSampleRate, time: next)
-        }
-        self.timer = timer; timer.resume()
     }
     public func submit(_ samples: [Float], rate: Double, time: Double) {
         guard samples.count <= 16384, slots.wait(timeout: .now()) == .success else { return }
         queue.async {
             defer { self.slots.signal() }
-            self.analyze(samples, rate: rate, time: time)
+            for frame in self.analyzer.process(samples: samples, sampleRate: rate, localTimestamp: time) { self.onFrame(frame) }
         }
     }
-    private func analyze(_ samples: [Float], rate: Double, time: Double) {
-        lastSampleRate = rate
-        nextSampleTime = time + Double(samples.count) / rate * 1000
-        for frame in analyzer.process(samples: samples, sampleRate: rate, localTimestamp: time) { onFrame(frame) }
-    }
     public func stop() -> (frames: Int, seconds: Double) {
-        timer?.cancel(); timer = nil
         return queue.sync { (analyzer.frameCount, analyzer.analysisSeconds) }
     }
 }
@@ -50,10 +30,14 @@ public final class SystemAudioCapture: NSObject, SCStreamOutput, SCStreamDelegat
     private let pipeline: AudioPipeline
     private let onStatus: @Sendable (String, String) -> Void
     private var reportedFormat = false
+    // Stream identity, liveness, and timer state are confined to callbackQueue.
+    private var watchdog = CaptureWatchdog()
+    private var watchdogTimer: DispatchSourceTimer?
     public init(pipeline: AudioPipeline, onStatus: @escaping @Sendable (String, String) -> Void) {
         self.pipeline = pipeline; self.onStatus = onStatus
     }
     public static var hasPermission: Bool { CGPreflightScreenCaptureAccess() }
+    public var needsRestart: Bool { callbackQueue.sync { watchdog.needsRestart } }
 
     public func start(displayID: UInt32? = nil, excludedBundleIDs: [String] = []) async throws {
         guard Self.hasPermission else {
@@ -76,26 +60,72 @@ public final class SystemAudioCapture: NSObject, SCStreamOutput, SCStreamDelegat
         configuration.queueDepth = 3
         let stream = SCStream(filter: filter, configuration: configuration, delegate: self)
         try stream.addStreamOutput(self, type: .audio, sampleHandlerQueue: callbackQueue)
-        self.stream = stream
-        try await stream.startCapture()
-        pipeline.startSilenceWatchdog()
-        onStatus("running", "ScreenCaptureKit display \(display.displayID); 48 kHz stereo; system output only")
+        callbackQueue.sync {
+            self.stream = stream
+            reportedFormat = false
+            watchdog.start(at: monotonicMilliseconds())
+        }
+        do { try await stream.startCapture() }
+        catch {
+            callbackQueue.sync {
+                self.stream = nil
+                watchdog.stop()
+                watchdogTimer?.cancel(); watchdogTimer = nil
+            }
+            try? await stream.stopCapture()
+            throw error
+        }
+        callbackQueue.sync {
+            guard self.stream === stream, watchdog.acceptsSamples else { return }
+            let timer = DispatchSource.makeTimerSource(queue: callbackQueue)
+            timer.schedule(deadline: .now() + 0.1, repeating: 0.1)
+            timer.setEventHandler { [weak self] in self?.pollWatchdog() }
+            watchdogTimer = timer; timer.resume()
+            onStatus("running", "ScreenCaptureKit display \(display.displayID); 48 kHz stereo; system output only")
+        }
     }
 
     public func stop() async {
-        if let stream { try? await stream.stopCapture() }
-        stream = nil
+        let previous = callbackQueue.sync { () -> SCStream? in
+            let previous = stream
+            stream = nil
+            watchdog.stop()
+            watchdogTimer?.cancel(); watchdogTimer = nil
+            return previous
+        }
+        if let previous { try? await previous.stopCapture() }
         onStatus("stopped", "System capture stopped")
     }
+
+    private func reportFailure(_ detail: String) {
+        watchdogTimer?.cancel(); watchdogTimer = nil
+        onStatus("error", "\(detail) The host will retry capture within five seconds.")
+    }
+
+    private func failCapture(_ stream: SCStream, detail: String) {
+        guard self.stream === stream, watchdog.fail() else { return }
+        reportFailure(detail)
+    }
+
+    private func pollWatchdog() {
+        guard let failure = watchdog.poll(at: monotonicMilliseconds()) else { return }
+        let timeout = failure == .noSamples ? watchdog.startupTimeoutMilliseconds : watchdog.stallTimeoutMilliseconds
+        let reason = failure == .noSamples ? "No first valid system audio buffer arrived" : "System audio buffer delivery stalled"
+        reportFailure(String(format: "%@ for %.1f seconds. Resume playback and check the selected display/audio output.", reason, timeout / 1000))
+    }
+
     public func stream(_ stream: SCStream, didStopWithError error: Error) {
-        onStatus("error", "ScreenCaptureKit stopped: \(error.localizedDescription). The host will retry capture.")
+        callbackQueue.async { [weak self] in
+            self?.failCapture(stream, detail: "ScreenCaptureKit stopped: \(error.localizedDescription). Check capture permission and the selected display/audio output.")
+        }
     }
     public func stream(_ stream: SCStream, didOutputSampleBuffer buffer: CMSampleBuffer, of outputType: SCStreamOutputType) {
-        guard outputType == .audio, buffer.isValid, CMSampleBufferDataIsReady(buffer),
+        guard self.stream === stream, watchdog.acceptsSamples,
+              outputType == .audio, buffer.isValid, CMSampleBufferDataIsReady(buffer),
               let format = CMSampleBufferGetFormatDescription(buffer), let description = CMAudioFormatDescriptionGetStreamBasicDescription(format) else { return }
         let asbd = description.pointee
         guard asbd.mFormatID == kAudioFormatLinearPCM, asbd.mSampleRate > 0 else {
-            onStatus("error", "Unsupported system audio format; linear PCM is required"); return
+            failCapture(stream, detail: "Unsupported system audio format; linear PCM is required."); return
         }
         let frames = CMSampleBufferGetNumSamples(buffer)
         guard frames > 0, frames <= 16384 else { return }
@@ -113,7 +143,7 @@ public final class SystemAudioCapture: NSObject, SCStreamOutput, SCStreamDelegat
         let bigEndian = asbd.mFormatFlags & kAudioFormatFlagIsBigEndian != 0
         let bits = Int(asbd.mBitsPerChannel)
         guard !bigEndian, (float && [32, 64].contains(bits)) || (!float && [16, 32].contains(bits) && asbd.mFormatFlags & kAudioFormatFlagIsSignedInteger != 0) else {
-            onStatus("error", "Unsupported PCM encoding; expected little-endian float32/64 or signed int16/32"); return
+            failCapture(stream, detail: "Unsupported PCM encoding; expected little-endian float32/64 or signed int16/32."); return
         }
         var mono = [Float](repeating: 0, count: frames)
         var channels = 0
@@ -143,6 +173,7 @@ public final class SystemAudioCapture: NSObject, SCStreamOutput, SCStreamDelegat
             reportedFormat = true
             hostLog("System audio format: \(Int(asbd.mSampleRate)) Hz, \(channels) channels, \(float ? "float" : "int")\(bits), \(buffers.count) buffers; timestamp source: host-clock PTS")
         }
+        guard watchdog.receivedSamples(at: monotonicMilliseconds()) else { return }
         pipeline.submit(mono, rate: asbd.mSampleRate, time: sampleTime)
     }
 }
